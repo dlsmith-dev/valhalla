@@ -2352,7 +2352,7 @@ const TypeOopPtr* LibraryCallKit::sharpen_unsafe_type(Compile::AliasType* alias_
   if (alias_type->field() != nullptr) {
     if (alias_type->field()->type()->is_klass()) {
       sharpened_klass = alias_type->field()->type()->as_klass();
-      null_free = alias_type->field()->is_null_free();
+      null_free = alias_type->field()->is_null_checked();
     }
   }
 

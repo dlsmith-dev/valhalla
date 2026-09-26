@@ -1210,9 +1210,9 @@ InstanceKlass* SystemDictionary::load_shared_class(InstanceKlass* ik,
     return nullptr;
   }
 
-  if (ik->has_flat_fields() || ik->has_null_restricted_static_fields()) {
+  if (ik->has_flat_fields()) {
     for (AllFieldStream fs(ik); !fs.done(); fs.next()) {
-      if (fs.access_flags().is_static() && !fs.is_null_free_value_type()) {
+      if (fs.access_flags().is_static()) {
         continue;
       }
 
@@ -1223,7 +1223,7 @@ InstanceKlass* SystemDictionary::load_shared_class(InstanceKlass* ik,
         continue;
       }
 
-      if (fs.is_flat() || fs.is_null_free_value_type()) {
+      if (fs.is_flat()) {
         bool check = preload_from_required_value_field(ik, class_loader, sig, field_index, CHECK_NULL);
         if (!check) {
           ik->set_shared_loading_failed();

@@ -1274,7 +1274,7 @@ static GrowableArray<ReassignedField>* get_reassigned_fields(InstanceKlass* klas
       field._type = Signature::basic_type(fs.signature());
       if (fs.is_flat()) {
         field._is_flat = true;
-        field._is_null_free = fs.is_null_free_value_type();
+        field._is_null_free = fs.is_null_checked();
         // Resolve klass of flat value type field
         field._klass = ValueKlass::cast(klass->get_value_type_field_klass(fs.index()));
       }

@@ -2972,7 +2972,7 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
       __ pop(atos);
       if (is_static) {
         Label is_nullable;
-        __ test_field_is_not_null_free_value_type(flags, rscratch1, is_nullable);
+        __ test_field_is_not_null_checked(flags, rscratch1, is_nullable);
         __ null_check(rax);  // FIXME JDK-8341120
         __ bind(is_nullable);
         do_oop_store(_masm, field, rax);
@@ -2980,7 +2980,7 @@ void TemplateTable::putfield_or_static_helper(int byte_no, bool is_static, Rewri
       } else {
         Label is_flat, null_free_reference, rewrite_value;
         __ test_field_is_flat(flags, rscratch1, is_flat);
-        __ test_field_is_null_free_value_type(flags, rscratch1, null_free_reference);
+        __ test_field_is_null_checked(flags, rscratch1, null_free_reference);
         pop_and_check_object(obj);
         // Store into the field
         do_oop_store(_masm, field, rax);

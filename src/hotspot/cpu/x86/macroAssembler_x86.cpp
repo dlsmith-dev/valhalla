@@ -2423,16 +2423,16 @@ void MacroAssembler::test_oop_is_not_value_type(Register object, Register tmp, L
   jcc(Assembler::notEqual, not_value_type);
 }
 
-void MacroAssembler::test_field_is_null_free_value_type(Register flags, Register temp_reg, Label& is_null_free_value_type) {
+void MacroAssembler::test_field_is_null_checked(Register flags, Register temp_reg, Label& is_null_checked) {
   movl(temp_reg, flags);
-  testl(temp_reg, 1 << ResolvedFieldEntry::is_null_free_value_type_shift);
-  jcc(Assembler::notEqual, is_null_free_value_type);
+  testl(temp_reg, 1 << ResolvedFieldEntry::is_null_checked_shift);
+  jcc(Assembler::notEqual, is_null_checked);
 }
 
-void MacroAssembler::test_field_is_not_null_free_value_type(Register flags, Register temp_reg, Label& not_null_free_value_type) {
+void MacroAssembler::test_field_is_not_null_checked(Register flags, Register temp_reg, Label& not_null_checked) {
   movl(temp_reg, flags);
-  testl(temp_reg, 1 << ResolvedFieldEntry::is_null_free_value_type_shift);
-  jcc(Assembler::equal, not_null_free_value_type);
+  testl(temp_reg, 1 << ResolvedFieldEntry::is_null_checked_shift);
+  jcc(Assembler::equal, not_null_checked);
 }
 
 void MacroAssembler::test_field_is_flat(Register flags, Register temp_reg, Label& is_flat) {

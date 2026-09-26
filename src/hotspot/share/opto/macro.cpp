@@ -730,7 +730,7 @@ Node* PhaseMacroExpand::value_type_from_mem(ciValueKlass* vk, const TypeAryPtr* 
     Node* field_value = nullptr;
     assert(!field->is_flat() || field->type()->is_value_klass(), "must be a value type");
     if (field->is_flat()) {
-      field_value = value_type_from_mem(field_type->as_value_klass(), elem_adr_type, elem_idx, field_offset_in_element, field->is_null_free(), alloc, sfpt);
+      field_value = value_type_from_mem(field_type->as_value_klass(), elem_adr_type, elem_idx, field_offset_in_element, field->is_null_checked(), alloc, sfpt);
     } else {
       const Type* ft = Type::get_const_type(field_type);
       BasicType bt = type2field[field_type->basic_type()];
@@ -1145,7 +1145,7 @@ bool PhaseMacroExpand::add_inst_fields_to_safepoint(ciInstanceKlass* iklass, All
       }
 
       // The null marker of a field is added right after we scalarize that field
-      if (!field->is_null_free()) {
+      if (!field->is_null_checked()) {
         int nm_offset = offset_minus_header + field->null_marker_offset();
         Node* null_marker = value_from_mem(sfpt, sfpt->control(), T_BOOLEAN, TypeInt::BOOL, base_type->with_offset(nm_offset), alloc);
         bool force_scalarization_failure = StressEliminateAllocations &&

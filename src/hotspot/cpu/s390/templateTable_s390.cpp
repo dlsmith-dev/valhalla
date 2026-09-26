@@ -3342,7 +3342,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
       __ pop(atos);
       if (is_static) {
         Label is_nullable;
-        __ z_tmll(flags, 1 << ResolvedFieldEntry::is_null_free_value_type_shift);
+        __ z_tmll(flags, 1 << ResolvedFieldEntry::is_null_checked_shift);
         __ branch_optimized(Assembler::bcondAllZero, is_nullable);
         __ null_check(Z_tos);  // FIXME JDK-8341120
         __ bind(is_nullable);
@@ -3353,7 +3353,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
         Label null_free_reference, is_flat, rewrite_value, done_valhalla;
         __ z_tmll(flags, 1 << ResolvedFieldEntry::is_flat_shift);
         __ branch_optimized(Assembler::bcondAllOne, is_flat);
-        __ z_tmll(flags, 1 << ResolvedFieldEntry::is_null_free_value_type_shift);
+        __ z_tmll(flags, 1 << ResolvedFieldEntry::is_null_checked_shift);
         __ branch_optimized(Assembler::bcondAllOne, null_free_reference);
         pop_and_check_object(obj);
         __ z_agr(fieldAddr, obj);

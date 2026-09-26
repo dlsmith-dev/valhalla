@@ -254,8 +254,8 @@ class MacroAssembler: public Assembler {
   static bool needs_explicit_null_check(intptr_t offset);
   static bool uses_implicit_null_check(void* address);
 
-  void test_field_is_null_free_value_type(Register flags, Register temp_reg, Label& is_null_free);
-  void test_field_is_not_null_free_value_type(Register flags, Register temp_reg, Label& not_null_free_value_type);
+  void test_field_is_null_checked(Register flags, Register temp_reg, Label& is_null_checked);
+  void test_field_is_not_null_checked(Register flags, Register temp_reg, Label& not_null_checked);
   void test_field_is_flat(Register flags, Register temp_reg, Label& is_flat);
 
   void test_markword_is_value_type(Register markword, Label& is_value_type);

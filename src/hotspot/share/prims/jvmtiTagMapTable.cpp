@@ -89,7 +89,7 @@ static bool equal_value_objects(oop obj1, int offset1, oop obj2, int offset2, Va
     if (fld.is_flat()) { // flat value field
       InstanceKlass* holder_klass = fld.field_descriptor().field_holder();
       ValueKlass* field_klass = holder_klass->get_value_type_field_klass(fld.index());
-      if (!fld.is_null_free_value_type()) {
+      if (!fld.is_null_checked()) {
         bool field1_is_null = is_null_flat_field(obj1, field_offset1, field_klass);
         bool field2_is_null = is_null_flat_field(obj2, field_offset2, field_klass);
         if (field1_is_null != field2_is_null) {

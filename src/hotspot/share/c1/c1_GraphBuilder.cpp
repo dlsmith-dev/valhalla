@@ -1809,7 +1809,7 @@ void GraphBuilder::copy_value_content(ciValueKlass* vk, Value src, int src_off, 
     int offset = field->offset_in_bytes() - vk->payload_offset();
     if (field->is_flat()) {
       copy_value_content(field->type()->as_value_klass(), src, src_off + offset, dest, dest_off + offset, state_before, enclosing_field);
-      if (!field->is_null_free()) {
+      if (!field->is_null_checked()) {
         // Nullable, copy the null marker using Unsafe because null markers are not real fields
         int null_marker_offset = field->null_marker_offset() - vk->payload_offset();
         Value offset = append(new Constant(new LongConstant(src_off + null_marker_offset)));
@@ -1900,7 +1900,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         Value mask = append(new Constant(new IntConstant(1)));
         val = append(new LogicOp(Bytecodes::_iand, val, mask));
       }
-      if (field->is_null_free()) {
+      if (field->is_null_checked()) {
         null_check(val);
 
         ciType* field_type = field->type();
@@ -1999,7 +1999,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
           } else {
             // Look at the next bytecode to check if we can delay the field access
             bool can_delay_access = false;
-            if (field->is_null_free()) {
+            if (field->is_null_checked()) {
               ciBytecodeStream s(method());
               s.force_bci(bci());
               s.next();
@@ -2014,7 +2014,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
                 // Offset adjustment for delayed reads requires a concrete value holder
                 bool next_holder_is_value_klass = next_holder->is_value_klass();
                 can_delay_access = C1UseDelayedFlattenedFieldReads && !next_needs_patching && !next_needs_atomic_access &&
-                                   next_field->is_null_free() && next_holder_is_value_klass;
+                                   next_field->is_null_checked() && next_holder_is_value_klass;
               }
             }
 
@@ -2036,7 +2036,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
               }
               scope()->set_wrote_fields();
               if (has_pending_load_indexed()) {
-                assert(field->is_null_free(), "nullable fields do not support delayed accesses yet");
+                assert(field->is_null_checked(), "nullable fields do not support delayed accesses yet");
                 assert(!needs_patching, "Can't patch delayed field access");
                 pending_load_indexed()->update(field, offset - field->holder()->as_value_klass()->payload_offset());
                 NewInstance* buffer = new NewInstance(value_klass, pending_load_indexed()->state_before(), false, true);
@@ -2047,7 +2047,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
                 append(pending_load_indexed()->load_instr());
                 set_pending_load_indexed(nullptr);
               } else if (has_pending_field_access()) {
-                assert(field->is_null_free(), "nullable fields do not support delayed accesses yet");
+                assert(field->is_null_checked(), "nullable fields do not support delayed accesses yet");
                 state_before = pending_field_access()->state_before();
                 NewInstance* buffer = new NewInstance(value_klass, state_before, false, true);
                 _memory->new_instance(buffer);
@@ -2057,7 +2057,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
                                     buffer, value_klass->payload_offset(), state_before);
                 set_pending_field_access(nullptr);
               } else {
-                if (!field->is_null_free() && !value_klass->is_initialized()) {
+                if (!field->is_null_checked() && !value_klass->is_initialized()) {
                   // Cannot allocate an instance of value_klass because it may have not been
                   // initialized, bailout for now
                   bailout("load from an uninitialized nullable non-atomic flat field");
@@ -2075,7 +2075,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
                 copy_value_content(value_klass, obj, field->offset_in_bytes(), buffer, value_klass->payload_offset(), state_before);
 
                 Instruction* result = buffer;
-                if (!field->is_null_free()) {
+                if (!field->is_null_checked()) {
                   Value int_zero = append(new Constant(intZero));
                   Value object_null = append(new Constant(objectNull));
                   Value nm_offset = append(new Constant(new LongConstant(offset + value_klass->null_marker_offset_in_payload())));
@@ -2112,7 +2112,7 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         null_check(obj);
         null_check(val);
       } else if (!field->is_flat()) {
-        if (field->is_null_free()) {
+        if (field->is_null_checked()) {
           null_check(val);
         }
         StoreField* store = new StoreField(obj, offset, field, val, false, state_before, needs_patching);
@@ -2125,11 +2125,11 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
         assert(!needs_patching, "Can't patch flat value type field access");
         ciValueKlass* value_klass = field_type->as_value_klass();
         if (field->is_atomic()) {
-          if (field->is_null_free()) {
+          if (field->is_null_checked()) {
             null_check(val);
           }
           append(new StoreField(obj, offset, field, val, false, state_before, needs_patching));
-        } else if (field->is_null_free()) {
+        } else if (field->is_null_checked()) {
           assert(!value_klass->is_empty(), "should have been handled");
           copy_value_content(value_klass, val, value_klass->payload_offset(), obj, offset, state_before, field);
         } else {

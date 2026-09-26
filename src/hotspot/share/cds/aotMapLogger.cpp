@@ -859,12 +859,12 @@ public:
           ValueKlass* vk = fd->flat_field_klass();
           bool is_null = fd->is_flat_field_marked_as_null(_fake_oop.buffered_addr(), _vpc);
 
-          if (!fd->is_null_free_value_type()) {
+          if (!fd->is_null_checked()) {
             assert(fd->has_null_marker(), "should have null marker");
             _st->print("Flat value type field '%s':", vk->name()->as_C_string());
           } else {
             precond(!is_null);
-            _st->print("Flat value null-free type field '%s':", vk->name()->as_C_string());
+            _st->print("Flat null-checked value type field '%s':", vk->name()->as_C_string());
           }
           // Print fields of flat field (recursively)
           if (!is_null) {

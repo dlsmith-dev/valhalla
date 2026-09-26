@@ -221,7 +221,7 @@ void InterpreterMacroAssembler::write_flat_field(Register entry, Register field_
   Label slow_path, done;
 
   load_unsigned_byte(tmp1, Address(entry, in_bytes(ResolvedFieldEntry::flags_offset())));
-  test_field_is_not_null_free_value_type(tmp1, noreg /* temp */, slow_path);
+  test_field_is_not_null_checked(tmp1, noreg /* temp */, slow_path);
 
   null_check(r0); // FIXME JDK-8341120
 

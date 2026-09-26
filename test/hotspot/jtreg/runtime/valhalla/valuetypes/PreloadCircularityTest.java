@@ -125,15 +125,14 @@ public class PreloadCircularityTest {
         OutputAnalyzer out = tryLoadClassAndCheckNullRestricted("PreloadCircularityTest$Class2a",
                                                                 "PreloadCircularityTest$Class2c",
                                                                 "vb",
-                                                                false);
+                                                                true);
         out.shouldHaveExitValue(0);
         out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class2b during loading of class PreloadCircularityTest$Class2a. Cause: field type in LoadableDescriptors attribute");
         out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class2c during loading of class PreloadCircularityTest$Class2b. Cause: field type in LoadableDescriptors attribute");
         out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class2b during loading of class PreloadCircularityTest$Class2c. Cause: field type in LoadableDescriptors attribute");
         out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class2b during loading of class PreloadCircularityTest$Class2c (cause: field type in LoadableDescriptors attribute) failed : java/lang/ClassCircularityError");
-        out.shouldContain("[warning][class,preload] After preloading of class PreloadCircularityTest$Class2b during loading of class PreloadCircularityTest$Class2c failed,field was annotated with @NullRestricted but class is unknown, the annotation is ignored");
-        out.shouldContain("[info   ][class,preload] Preloading of class PreloadCircularityTest$Class2c during loading of class PreloadCircularityTest$Class2b (cause: field type in LoadableDescriptors attribute) succeeded");
-        out.shouldContain("[info   ][class,preload] Preloading of class PreloadCircularityTest$Class2b during loading of class PreloadCircularityTest$Class2a (cause: field type in LoadableDescriptors attribute) succeeded");
+        out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class2c during loading of class PreloadCircularityTest$Class2b (cause: field type in LoadableDescriptors attribute) succeeded");
+        out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class2b during loading of class PreloadCircularityTest$Class2a (cause: field type in LoadableDescriptors attribute) succeeded");
     }
 
     static value class Class3a {
@@ -177,14 +176,13 @@ public class PreloadCircularityTest {
         OutputAnalyzer out = tryLoadClassAndCheckNullRestricted("PreloadCircularityTest$Class4a",
                                                                 "PreloadCircularityTest$Class4b",
                                                                 "va",
-                                                                false);
+                                                                true);
         out.shouldHaveExitValue(0);
 
         out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class4b during loading of class PreloadCircularityTest$Class4a. Cause: field type in LoadableDescriptors attribute");
         out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class4a during loading of class PreloadCircularityTest$Class4b. Cause: field type in LoadableDescriptors attribute");
         out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class4a during loading of class PreloadCircularityTest$Class4b (cause: field type in LoadableDescriptors attribute) failed : java/lang/ClassCircularityError");
-        out.shouldContain("[warning][class,preload] After preloading of class PreloadCircularityTest$Class4a during loading of class PreloadCircularityTest$Class4b failed,field was annotated with @NullRestricted but class is unknown, the annotation is ignored");
-        out.shouldContain("[info   ][class,preload] Preloading of class PreloadCircularityTest$Class4b during loading of class PreloadCircularityTest$Class4a (cause: field type in LoadableDescriptors attribute) succeeded");
+        out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class4b during loading of class PreloadCircularityTest$Class4a (cause: field type in LoadableDescriptors attribute) succeeded");
     }
 
     static value class Class5a {
@@ -215,13 +213,12 @@ public class PreloadCircularityTest {
         out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class5d during loading of class PreloadCircularityTest$Class5b. Cause: field type in LoadableDescriptors attribute");
         out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class5b during loading of class PreloadCircularityTest$Class5d. Cause: field type in LoadableDescriptors attribute");
         out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class5b during loading of class PreloadCircularityTest$Class5d (cause: field type in LoadableDescriptors attribute) failed : java/lang/ClassCircularityError");
-        out.shouldContain("[warning][class,preload] After preloading of class PreloadCircularityTest$Class5b during loading of class PreloadCircularityTest$Class5d failed,field was annotated with @NullRestricted but class is unknown, the annotation is ignored");
-        out.shouldContain("[info   ][class,preload] Preloading of class PreloadCircularityTest$Class5d during loading of class PreloadCircularityTest$Class5b (cause: field type in LoadableDescriptors attribute) succeeded");
-        out.shouldContain("[info   ][class,preload] Preloading of class PreloadCircularityTest$Class5b during loading of class PreloadCircularityTest$Class5a (cause: field type in LoadableDescriptors attribute) succeeded");
-        out.shouldContain("[info   ][class,preload] Preloading of class PreloadCircularityTest$Class5c during loading of class PreloadCircularityTest$Class5a. Cause: field type in LoadableDescriptors attribute");
-        out.shouldContain("[info   ][class,preload] Preloading of class PreloadCircularityTest$Class5b during loading of class PreloadCircularityTest$Class5c. Cause: field type in LoadableDescriptors attribute");
-        out.shouldContain("[info   ][class,preload] Preloading of class PreloadCircularityTest$Class5b during loading of class PreloadCircularityTest$Class5c (cause: field type in LoadableDescriptors attribute) succeeded");
-        out.shouldContain("[info   ][class,preload] Preloading of class PreloadCircularityTest$Class5c during loading of class PreloadCircularityTest$Class5a (cause: field type in LoadableDescriptors attribute) succeeded");
+        out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class5d during loading of class PreloadCircularityTest$Class5b (cause: field type in LoadableDescriptors attribute) succeeded");
+        out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class5b during loading of class PreloadCircularityTest$Class5a (cause: field type in LoadableDescriptors attribute) succeeded");
+        out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class5c during loading of class PreloadCircularityTest$Class5a. Cause: field type in LoadableDescriptors attribute");
+        out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class5b during loading of class PreloadCircularityTest$Class5c. Cause: field type in LoadableDescriptors attribute");
+        out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class5b during loading of class PreloadCircularityTest$Class5c (cause: field type in LoadableDescriptors attribute) succeeded");
+        out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class5c during loading of class PreloadCircularityTest$Class5a (cause: field type in LoadableDescriptors attribute) succeeded");
     }
 
     static value class Class6a {
@@ -255,9 +252,8 @@ public class PreloadCircularityTest {
         out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class6d during loading of class PreloadCircularityTest$Class6b. Cause: field type in LoadableDescriptors attribute");
         out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class6b during loading of class PreloadCircularityTest$Class6d. Cause: field type in LoadableDescriptors attribute");
         out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class6b during loading of class PreloadCircularityTest$Class6d (cause: field type in LoadableDescriptors attribute) failed : java/lang/ClassCircularityError");
-        out.shouldContain("[warning][class,preload] After preloading of class PreloadCircularityTest$Class6b during loading of class PreloadCircularityTest$Class6d failed,field was annotated with @NullRestricted but class is unknown, the annotation is ignored");
-        out.shouldContain("[info   ][class,preload] Preloading of class PreloadCircularityTest$Class6d during loading of class PreloadCircularityTest$Class6b (cause: field type in LoadableDescriptors attribute) succeeded");
-        out.shouldContain("[info   ][class,preload] Preloading of class PreloadCircularityTest$Class6b during loading of class PreloadCircularityTest$Class6a (cause: field type in LoadableDescriptors attribute) succeeded");
+        out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class6d during loading of class PreloadCircularityTest$Class6b (cause: field type in LoadableDescriptors attribute) succeeded");
+        out.shouldContain("[info][class,preload] Preloading of class PreloadCircularityTest$Class6b during loading of class PreloadCircularityTest$Class6a (cause: field type in LoadableDescriptors attribute) succeeded");
     }
 
     static value class Class7a {
@@ -268,7 +264,6 @@ public class PreloadCircularityTest {
     void test_7() throws Exception {
         OutputAnalyzer out = tryLoadingClass("PreloadCircularityTest$Class7a");
         out.shouldHaveExitValue(0);
-        out.shouldNotContain("[warning][class,preload] During loading of class PreloadCircularityTest$Class7a, class PreloadCircularityTest$Class7a is unknown, but a field of this type was annotated with @NullRestricted, the annotation is ignored");
     }
 
     static value class Class8a {
@@ -291,7 +286,6 @@ public class PreloadCircularityTest {
     void test_9() throws Exception {
         OutputAnalyzer out = tryLoadingClass("PreloadCircularityTest$Class9a");
         out.shouldHaveExitValue(0);
-        out.shouldContain("[warning][class,preload] During loading of class PreloadCircularityTest$Class9a, class PreloadCircularityTest$Class9b is unknown, but a field of this type was annotated with @NullRestricted, the annotation is ignored");
     }
 
     public static class TestHelper {

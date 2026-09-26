@@ -3942,14 +3942,14 @@ void MacroAssembler::test_oop_is_not_value_type(Register object, Register tmp, L
   branch_optimized(bcondNotEqual, not_value_type);
 }
 
-void MacroAssembler::test_field_is_null_free_value_type(Register flags, Label& is_null_free) {
-  testbit(flags, ResolvedFieldEntry::is_null_free_value_type_shift);
+void MacroAssembler::test_field_is_null_checked(Register flags, Label& is_null_checked) {
+  testbit(flags, ResolvedFieldEntry::is_null_checked_shift);
   z_brc(Assembler::bcondAllOne, is_null_free);
 }
 
-void MacroAssembler::test_field_is_not_null_free_value_type(Register flags, Label& not_null_free_value_type) {
-  testbit(flags, ResolvedFieldEntry::is_null_free_value_type_shift);
-  z_brc(Assembler::bcondAllZero, not_null_free_value_type);
+void MacroAssembler::test_field_is_not_null_checked(Register flags, Label& not_null_checked) {
+  testbit(flags, ResolvedFieldEntry::is_null_checked_shift);
+  z_brc(Assembler::bcondAllZero, not_null_checked);
 }
 
 void MacroAssembler::test_field_is_flat(Register flags, Label& is_flat) {

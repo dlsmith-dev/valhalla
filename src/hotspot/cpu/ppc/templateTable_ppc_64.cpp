@@ -3208,7 +3208,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
   } else { // Valhalla
     if (is_static) {
       Label is_nullable;
-      __ test_field_is_not_null_free_value_type(Rflags, is_nullable);
+      __ test_field_is_not_null_checked(Rflags, is_nullable);
       __ null_check_throw(R17_tos, -1, Rscratch);
       __ align(32, 12);
       __ bind(is_nullable);
@@ -3216,7 +3216,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
     } else {
       Label null_free_reference, is_flat, rewrite_value;
       __ test_field_is_flat(Rflags, is_flat);
-      __ test_field_is_null_free_value_type(Rflags, null_free_reference);
+      __ test_field_is_null_checked(Rflags, null_free_reference);
       pop_and_check_object(Rclass_or_obj);
       // Store into the field
       do_oop_store(_masm, Rclass_or_obj, Roffset, R17_tos, Rscratch, Rscratch2, Rscratch3, IN_HEAP);

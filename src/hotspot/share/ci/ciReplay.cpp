@@ -1034,7 +1034,8 @@ class CompileReplay : public StackObj {
 
     void do_field(fieldDescriptor* fd) {
       BasicType bt = fd->field_type();
-      const char* string_value = fd->is_null_free_value_type() ? nullptr : _replay->parse_escaped_string();
+      const char* string_value = fd->is_null_checked() ? nullptr : _replay->parse_escaped_string();
+      // todo: do we want a null when !fd->is_flat()?
       switch (bt) {
       case T_BYTE: {
         int value = atoi(string_value);
@@ -1082,7 +1083,7 @@ class CompileReplay : public StackObj {
       }
       case T_ARRAY:
       case T_OBJECT:
-        if (fd->is_null_free_value_type() && fd->is_flat()) {
+        if (fd->is_null_checked() && fd->is_flat()) {
           ValueKlass* vk = fd->flat_field_klass();
           int field_offset = fd->offset() - vk->payload_offset();
           oop obj = cast_to_oop(cast_from_oop<address>(_vt) + field_offset);
@@ -1248,13 +1249,6 @@ class CompileReplay : public StackObj {
       const char* string_value = parse_escaped_string();
       double value = atof(string_value);
       java_mirror->double_field_put(fd.offset(), value);
-    } else if (fd.is_null_free_value_type()) {
-      Klass* kelem = resolve_klass(field_signature, CHECK);
-      ValueKlass* vk = ValueKlass::cast(kelem);
-      oop value = vk->allocate_instance(CHECK);
-      ValueTypeFieldInitializer init_fields(value, this);
-      vk->do_nonstatic_fields(&init_fields);
-      java_mirror->obj_field_put(fd.offset(), value);
     } else {
       bool res = process_staticfield_reference(field_signature, java_mirror, &fd, CHECK);
       if (!res)  {

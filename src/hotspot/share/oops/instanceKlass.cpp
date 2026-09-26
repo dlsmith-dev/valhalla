@@ -223,8 +223,8 @@ static inline bool is_class_loader(const Symbol* class_name,
   return false;
 }
 
-bool InstanceKlass::field_is_null_free_value_type(int index) const {
-  return field(index).field_flags().is_null_free_value_type();
+bool InstanceKlass::field_is_null_checked(int index) const {
+  return field(index).field_flags().is_null_checked();
 }
 
 bool InstanceKlass::is_class_in_loadable_descriptors_attribute(Symbol* name) const {

@@ -852,8 +852,8 @@ class MacroAssembler: public Assembler {
   void test_oop_is_not_value_type(Register object, Register tmp, Label& not_value_type, bool can_be_null = true);
 
   // Valhalla support for value types
-  void test_field_is_null_free_value_type(Register flags, Label& is_null_free);
-  void test_field_is_not_null_free_value_type(Register flags, Label& not_null_free_value_type);
+  void test_field_is_null_checked(Register flags, Label& is_null_checked);
+  void test_field_is_not_null_checked(Register flags, Label& not_null_checked);
   void test_field_is_flat(Register flags, Label& is_flat);
 
   // Klass oop manipulations if compressed.

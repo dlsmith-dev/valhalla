@@ -73,8 +73,8 @@ static LayoutKind field_layout_selection(FieldInfo field_info, Array<ValueFieldL
   ValueFieldLayoutInfo* value_field_layout_info = value_field_layout_info_array->adr_at(field_info.index());
   ValueKlass* vk = value_field_layout_info->klass();
 
-  if (field_info.field_flags().is_null_free_value_type()) {
-    assert(field_info.access_flags().is_strict(), "null-free fields must be strict");
+  if (field_info.field_flags().is_null_checked()) {
+    assert(field_info.access_flags().is_strict(), "null-checked fields must be strict");
     if (vk->must_be_atomic()) {
       if (vk->is_naturally_atomic(true /* null-free */) && vk->has_null_free_non_atomic_layout()) {
         return LayoutKind::NULL_FREE_NON_ATOMIC_FLAT;
@@ -120,11 +120,6 @@ static LayoutKind adjust_with_budget(FieldInfo field_info, Array<ValueFieldLayou
 }
 
 static bool field_is_flattenable(FieldInfo fieldinfo, LayoutKind lk, Array<ValueFieldLayoutInfo>* li) {
-  if (fieldinfo.field_flags().is_null_free_value_type()) {
-    // A null-free value type is always flattenable
-    return true;
-  }
-
   if (lk != LayoutKind::REFERENCE) {
     assert(lk != LayoutKind::BUFFERED, "Sanity check");
     assert(lk != LayoutKind::UNKNOWN, "Sanity check");

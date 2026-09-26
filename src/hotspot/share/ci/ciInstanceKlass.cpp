@@ -886,7 +886,7 @@ void StaticFieldPrinter::do_field_helper(fieldDescriptor* fd, oop mirror, bool i
     }
     case T_ARRAY:  // fall-through
     case T_OBJECT:
-      if (!fd->is_null_free_value_type()) {
+      if (!fd->is_null_checked() || !fd->is_flat()) {
         _out->print("%s", fd->signature()->as_quoted_ascii());
         oop value =  mirror->obj_field_acquire(fd->offset());
         if (value == nullptr) {
@@ -938,6 +938,7 @@ void StaticFieldPrinter::do_field_helper(fieldDescriptor* fd, oop mirror, bool i
         break;
       } else {
         // handling of null free value type
+        // todo: unclear why null-checked fields should get special treatment
         _out->print("%s", fd->signature()->as_quoted_ascii());
         ResetNoHandleMark rnhm;
         Thread* THREAD = Thread::current();

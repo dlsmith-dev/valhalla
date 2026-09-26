@@ -1678,7 +1678,7 @@ void LIRGenerator::do_StoreField(StoreField* x) {
 #endif
 
     // Zero the payload
-    BasicType bt = vk->atomic_size_to_basic_type(field->is_null_free());
+    BasicType bt = vk->atomic_size_to_basic_type(field->is_null_checked());
     LIR_Opr payload = new_register((bt == T_LONG) ? bt : T_INT);
     LIR_Opr zero = (bt == T_LONG) ? LIR_OprFact::longConst(0) : LIR_OprFact::intConst(0);
     __ move(zero, payload);
@@ -1695,7 +1695,7 @@ void LIRGenerator::do_StoreField(StoreField* x) {
       if (!vk->is_empty()) {
         access_load_at(decorators, bt, value, LIR_OprFact::intConst(vk->payload_offset()), payload);
       }
-      if (!field->is_null_free()) {
+      if (!field->is_null_checked()) {
         __ logical_or(payload, null_marker_mask(bt, field), payload);
       }
       if (needs_null_check) {
@@ -2177,7 +2177,7 @@ void LIRGenerator::do_LoadField(LoadField* x) {
 #endif
 
     NewInstance* buffer = nullptr;
-    bool assert_null = !field->is_null_free() && !vk->is_initialized();
+    bool assert_null = !field->is_null_checked() && !vk->is_initialized();
     if (!assert_null) {
       // Allocate the buffer before loading the payload because allocation may safepoint
       // and a payload may contain oops represented as raw bits and thus invisible to the GC.
@@ -2187,7 +2187,7 @@ void LIRGenerator::do_LoadField(LoadField* x) {
       do_NewInstance(buffer);
     }
 
-    BasicType bt = vk->atomic_size_to_basic_type(field->is_null_free());
+    BasicType bt = vk->atomic_size_to_basic_type(field->is_null_checked());
     LIR_Opr payload = new_register((bt == T_LONG) ? bt : T_INT);
     access_load_at(decorators, bt, object, LIR_OprFact::intConst(field->offset_in_bytes()), payload,
                    // Make sure to emit an implicit null check
@@ -2209,7 +2209,7 @@ void LIRGenerator::do_LoadField(LoadField* x) {
     LIRItem dest(buffer, this);
     access_store_at(decorators, bt, dest, LIR_OprFact::intConst(vk->payload_offset()), payload);
 
-    if (field->is_null_free()) {
+    if (field->is_null_checked()) {
       set_result(x, buffer->operand());
     } else {
       // Check the null marker and set result to null if it's not set

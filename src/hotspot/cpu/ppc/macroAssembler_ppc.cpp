@@ -3313,14 +3313,14 @@ void MacroAssembler::test_oop_is_not_value_type(Register object, Label& not_valu
   bne(CR0, not_value_type);
 }
 
-void MacroAssembler::test_field_is_null_free_value_type(Register flags, Label& is_null_free_value_type) {
-  testbitdi(CR0, R0, flags, ResolvedFieldEntry::is_null_free_value_type_shift);
-  bne(CR0, is_null_free_value_type);
+void MacroAssembler::test_field_is_null_checked(Register flags, Label& is_null_checked) {
+  testbitdi(CR0, R0, flags, ResolvedFieldEntry::is_null_checked_shift);
+  bne(CR0, is_null_checked);
 }
 
-void MacroAssembler::test_field_is_not_null_free_value_type(Register flags, Label& not_null_free_value_type) {
-  testbitdi(CR0, R0, flags, ResolvedFieldEntry::is_null_free_value_type_shift);
-  beq(CR0, not_null_free_value_type);
+void MacroAssembler::test_field_is_not_null_checked(Register flags, Label& not_null_checked) {
+  testbitdi(CR0, R0, flags, ResolvedFieldEntry::is_null_checked_shift);
+  beq(CR0, not_null_checked);
 }
 
 void MacroAssembler::test_field_is_flat(Register flags, Label& is_flat) {

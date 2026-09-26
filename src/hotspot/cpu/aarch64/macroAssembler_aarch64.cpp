@@ -2397,14 +2397,14 @@ void MacroAssembler::test_oop_is_not_value_type(Register object, Register tmp, L
   br(Assembler::NE, not_value_type);
 }
 
-void MacroAssembler::test_field_is_null_free_value_type(Register flags, Register temp_reg, Label& is_null_free_value_type) {
+void MacroAssembler::test_field_is_null_checked(Register flags, Register temp_reg, Label& is_null_checked) {
   assert(temp_reg == noreg, "not needed"); // keep signature uniform with x86
-  tbnz(flags, ResolvedFieldEntry::is_null_free_value_type_shift, is_null_free_value_type);
+  tbnz(flags, ResolvedFieldEntry::is_null_checked_shift, is_null_checked);
 }
 
-void MacroAssembler::test_field_is_not_null_free_value_type(Register flags, Register temp_reg, Label& not_null_free_value_type) {
+void MacroAssembler::test_field_is_not_null_checked(Register flags, Register temp_reg, Label& not_null_checked) {
   assert(temp_reg == noreg, "not needed"); // keep signature uniform with x86
-  tbz(flags, ResolvedFieldEntry::is_null_free_value_type_shift, not_null_free_value_type);
+  tbz(flags, ResolvedFieldEntry::is_null_checked_shift, not_null_checked);
 }
 
 void MacroAssembler::test_field_is_flat(Register flags, Register temp_reg, Label& is_flat) {

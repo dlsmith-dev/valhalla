@@ -1138,10 +1138,10 @@ JRT_ENTRY(void, Runtime1::patch_code(JavaThread* current, StubId stub_id ))
 
     deoptimize_for_volatile = result.access_flags().is_volatile();
 
-    // The field we are patching is null-free. Deoptimize and regenerate
+    // The field we are patching is null-checked. Deoptimize and regenerate
     // the compiled code if we patch a putfield/putstatic because it
     // does not contain the required null check.
-    deoptimize_for_null_free = result.is_null_free_value_type() && (field_access.is_putfield() || field_access.is_putstatic());
+    deoptimize_for_null_free = result.is_null_checked() && (field_access.is_putfield() || field_access.is_putstatic());
 
     // The field we are patching is flat. Deoptimize and regenerate
     // the compiled code which can't handle the layout of the flat

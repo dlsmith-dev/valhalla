@@ -551,7 +551,7 @@ private:
   int index() const { return _index; }
   const InstanceKlass* holder() { return _holder; }
   const AccessFlags& access_flags() { return _access_flags; }
-  bool is_null_free_value_type() const { return _field_flags.is_null_free_value_type(); }
+  bool is_null_checked() const { return _field_flags.is_null_checked(); }
 };
 
 static int compare_offset(FieldDesc* f1, FieldDesc* f2) {
@@ -582,7 +582,7 @@ static void print_flat_field(outputStream* st, int level, int offset, InstanceKl
     FieldDesc fd = fields->at(i);
     int offset2 = offset + fd.offset() - vklass->payload_offset();
     print_field(st, level, offset2, fd,
-        fd.is_null_free_value_type(), fd.holder()->field_is_flat(fd.index()));
+        fd.is_null_checked(), fd.holder()->field_is_flat(fd.index()));
     if (fd.holder()->field_is_flat(fd.index())) {
       print_flat_field(st, level + 1, offset2 ,
           InstanceKlass::cast(fd.holder()->get_value_type_field_klass(fd.index())));
@@ -628,7 +628,7 @@ void ClassPrintLayout::class_print_layout(outputStream* st, char* class_name) {
     fields->sort(compare_offset);
     for(int i = 0; i < fields->length(); i++) {
       FieldDesc fd = fields->at(i);
-      print_field(st, 0, fd.offset(), fd, fd.is_null_free_value_type(), fd.holder()->field_is_flat(fd.index()));
+      print_field(st, 0, fd.offset(), fd, fd.is_null_checked(), fd.holder()->field_is_flat(fd.index()));
       if (fd.holder()->field_is_flat(fd.index())) {
         print_flat_field(st, 1, fd.offset(),
             InstanceKlass::cast(fd.holder()->get_value_type_field_klass(fd.index())));

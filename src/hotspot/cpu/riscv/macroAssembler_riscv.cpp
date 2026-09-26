@@ -3928,14 +3928,14 @@ void MacroAssembler::null_check(Register reg, int offset) {
   }
 }
 
-void MacroAssembler::test_field_is_null_free_value_type(Register flags, Register temp_reg, Label& is_null_free_value_type) {
-  test_bit(temp_reg, flags, ResolvedFieldEntry::is_null_free_value_type_shift);
-  bnez(temp_reg, is_null_free_value_type);
+void MacroAssembler::test_field_is_null_checked(Register flags, Register temp_reg, Label& is_null_checked) {
+  test_bit(temp_reg, flags, ResolvedFieldEntry::is_null_checked_shift);
+  bnez(temp_reg, is_null_checked);
 }
 
-void MacroAssembler::test_field_is_not_null_free_value_type(Register flags, Register temp_reg, Label& not_null_free_value_type) {
-  test_bit(temp_reg, flags, ResolvedFieldEntry::is_null_free_value_type_shift);
-  beqz(temp_reg, not_null_free_value_type);
+void MacroAssembler::test_field_is_not_null_checked(Register flags, Register temp_reg, Label& not_null_checked) {
+  test_bit(temp_reg, flags, ResolvedFieldEntry::is_null_checked_shift);
+  beqz(temp_reg, not_null_checked);
 }
 
 void MacroAssembler::test_field_is_flat(Register flags, Register temp_reg, Label& is_flat) {

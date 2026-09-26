@@ -108,7 +108,7 @@ ciField::ciField(ciInstanceKlass* klass, int index, Bytecodes::Code bc) :
     _type = ciType::make(field_type);
   }
 
-  _is_null_free = false;
+  _is_null_checked = false;
   _null_marker_offset = -1;
 
   // Get the field's declared holder.
@@ -246,7 +246,7 @@ ciField::ciField(ciField* declared_field, ciField* subfield) {
   _constant_value = ciConstant();
 
   _is_flat = false;
-  _is_null_free = false;
+  _is_null_checked = false;
   _null_marker_offset = -1;
   _original_holder = (subfield->_original_holder != nullptr) ? subfield->_original_holder : subfield->_holder;
   _layout_kind = LayoutKind::UNKNOWN;
@@ -255,7 +255,7 @@ ciField::ciField(ciField* declared_field, ciField* subfield) {
 // Constructor for the ciField of a null marker
 ciField::ciField(ciField* declared_field) {
   assert(declared_field->is_flat(), "declared field must be flat");
-  assert(!declared_field->is_null_free(), "must have a null marker");
+  assert(!declared_field->is_null_checked(), "must have a null marker");
 
   _flags = declared_field->flags();
   _holder = declared_field->holder();
@@ -275,7 +275,7 @@ ciField::ciField(ciField* declared_field) {
   _constant_value = ciConstant();
 
   _is_flat = false;
-  _is_null_free = false;
+  _is_null_checked = false;
   _null_marker_offset = -1;
   _original_holder = nullptr;
   _layout_kind = LayoutKind::UNKNOWN;
@@ -313,7 +313,7 @@ void ciField::initialize_from(fieldDescriptor* fd) {
   assert(field_holder != nullptr, "null field_holder");
   _holder = CURRENT_ENV->get_instance_klass(field_holder);
   _is_flat = fd->is_flat();
-  _is_null_free = fd->is_null_free_value_type();
+  _is_null_checked = fd->is_null_checked();
   if (fd->has_null_marker()) {
     ValueFieldLayoutInfo* li = field_holder->value_field_layout_info_adr(fd->index());
     _null_marker_offset = li->null_marker_offset();
@@ -417,7 +417,7 @@ ciType* ciField::compute_type_impl() {
 
 bool ciField::is_atomic() {
   assert(is_flat(), "should not ask this property for non-flat field %s.%s", holder()->name()->as_utf8(), name()->as_utf8());
-  return LayoutKindHelper::is_atomic_flat(_layout_kind) && !type()->as_value_klass()->is_naturally_atomic(is_null_free());
+  return LayoutKindHelper::is_atomic_flat(_layout_kind) && !type()->as_value_klass()->is_naturally_atomic(is_null_checked());
 }
 
 // ------------------------------------------------------------------
@@ -507,7 +507,7 @@ bool ciField::is_autobox_cache() {
 
 bool ciField::empty_null_free_initialized_value_field(bool method_is_safe) {
   ciType* field_type = type();
-  return is_null_free() && field_type->is_value_klass() && field_type->as_value_klass()->is_empty() &&
+  return is_null_checked() && field_type->is_value_klass() && field_type->as_value_klass()->is_empty() &&
          (method_is_safe || is_flat());
 }
 
@@ -532,7 +532,7 @@ void ciField::print() const {
     _constant_value.print();
   }
   tty->print(" is_flat=%s", bool_to_str(_is_flat));
-  tty->print(" is_null_free=%s", bool_to_str(_is_null_free));
+  tty->print(" is_null_checked=%s", bool_to_str(_is_null_checked));
   tty->print(" null_marker_offset=%d", _null_marker_offset);
   tty->print(">");
 }

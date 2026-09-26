@@ -828,8 +828,8 @@ class MacroAssembler: public Assembler {
   // ValueKlass queries, kills temp_reg
   void test_oop_is_not_value_type(Register object, Label& not_value_type, bool can_be_null = true);
 
-  void test_field_is_null_free_value_type(Register flags, Label& is_null_free);
-  void test_field_is_not_null_free_value_type(Register flags, Label& not_null_free);
+  void test_field_is_null_checked(Register flags, Label& is_null_checked);
+  void test_field_is_not_null_checked(Register flags, Label& not_null_checked);
   void test_field_is_flat(Register flags, Label& is_flat);
 
   // Check oops for special arrays, i.e. flat arrays and/or null-free arrays

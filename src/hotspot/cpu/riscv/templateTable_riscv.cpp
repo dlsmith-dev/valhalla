@@ -2988,7 +2988,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
       __ pop(atos);
       if (is_static) {
         Label is_nullable;
-        __ test_field_is_not_null_free_value_type(flags, x28, is_nullable);
+        __ test_field_is_not_null_checked(flags, x28, is_nullable);
         __ null_check(x10); // FIXME JDK-8341120
         __ bind(is_nullable);
         // field address
@@ -2999,7 +2999,7 @@ void TemplateTable::putfield_or_static(int byte_no, bool is_static, RewriteContr
       } else {
         Label null_free_reference, is_flat, rewrite_value;
         __ test_field_is_flat(flags, x28, is_flat);
-        __ test_field_is_null_free_value_type(flags, x28, null_free_reference);
+        __ test_field_is_null_checked(flags, x28, null_free_reference);
         pop_and_check_object(obj);
         {
           __ add(off, obj, off);

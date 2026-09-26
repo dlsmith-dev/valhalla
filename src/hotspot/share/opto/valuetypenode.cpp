@@ -279,7 +279,7 @@ uint ValueTypeNode::add_fields_to_safepoint(Unique_Node_List& worklist, SafePoin
     if (field->is_flat()) {
       ValueTypeNode* vt = value->as_ValueType();
       cnt += vt->add_fields_to_safepoint(worklist, sfpt);
-      if (!field->is_null_free()) {
+      if (!field->is_null_checked()) {
         // The null marker of a flat field is added right after we scalarize that field
         sfpt->add_req(vt->get_null_marker());
         cnt++;
@@ -423,7 +423,7 @@ void ValueTypeNode::load(GraphKit* kit, Node* base, Node* ptr, bool immutable_me
     Node* field_ptr = kit->basic_plus_adr(base, ptr, field_off);
     Node* value = nullptr;
     ciType* ft = field->type();
-    bool field_null_free = field->is_null_free();
+    bool field_null_free = field->is_null_checked();
     if (field->is_flat()) {
       // Recursively load the flat value type field
       ciValueKlass* fvk = ft->as_value_klass();
@@ -560,7 +560,7 @@ void ValueTypeNode::store(GraphKit* kit, Node* base, Node* ptr, bool immutable_m
     assert(!field->is_flat() || field->type()->is_value_klass(), "must be a value type");
     int field_off = field->offset_in_bytes() - vk->payload_offset();
     Node* field_val = field_value(i);
-    bool field_null_free = field->is_null_free();
+    bool field_null_free = field->is_null_checked();
     ciType* ft = field->type();
     Node* field_ptr = kit->basic_plus_adr(base, ptr, field_off);
     if (field->is_flat()) {
@@ -1268,7 +1268,7 @@ void ValueTypeNode::replace_field_projs(Compile* C, CallNode* call, uint& proj_i
       ValueTypeNode* vt = value->as_ValueType();
       // Replace field projections for flat field
       vt->replace_field_projs(C, call, proj_idx);
-      if (!field->is_null_free()) {
+      if (!field->is_null_checked()) {
         // Replace null_marker projection for nullable field
         replace_proj(C, call, proj_idx, vt->get_null_marker(), T_BOOLEAN);
       }
@@ -1408,7 +1408,7 @@ ValueTypeNode* ValueTypeNode::make_all_zero_impl(PhaseGVN& gvn, ciValueKlass* vk
     assert(!field->is_flat() || field->type()->is_value_klass(), "must be a value type");
     ciType* ft = field->type();
     Node* value;
-    if (field->is_null_free()) {
+    if (field->is_null_checked()) {
       value = make_all_zero_impl(gvn, ft->as_value_klass());
     } else if (field->is_flat()) {
       value = make_null_impl(gvn, ft->as_value_klass());
@@ -1431,7 +1431,7 @@ bool ValueTypeNode::is_all_zero(PhaseGVN* gvn, bool flat) const {
     Node* value = field_value(i);
     ciField* field = this->field(i);
     assert(!field->is_flat() || field->type()->is_value_klass(), "must be a value type");
-    if (field->is_null_free()) {
+    if (field->is_null_checked()) {
       // Null-free value class field must have the all-zero value. If 'flat' is set,
       // reject non-flat fields because they need to be initialized with an oop to a buffer.
       if (!value->is_ValueType() || !value->as_ValueType()->is_all_zero(gvn) || (flat && !field->is_flat())) {
@@ -1697,7 +1697,7 @@ Node* ValueTypeNode::is_loaded(PhaseGVN* phase, ciValueKlass* vk, Node* base, in
       if (vt->type()->value_klass()->is_empty()) {
         // Skip nullable empty fields because they have observable
         // null state that is not represented by declared fields.
-        if (!field->is_null_free()) {
+        if (!field->is_null_checked()) {
           return nullptr;
         }
         continue;
@@ -1767,7 +1767,7 @@ void ValueTypeNode::pass_fields(GraphKit* kit, Node* n, uint& base_input, bool i
     if (field->is_flat()) {
       // Flat value type field
       arg->as_ValueType()->pass_fields(kit, n, base_input, in);
-      if (!field->is_null_free()) {
+      if (!field->is_null_checked()) {
         assert(field->null_marker_offset() != -1, "inconsistency");
         n->init_req(base_input++, arg->as_ValueType()->get_null_marker());
       }
@@ -1827,9 +1827,9 @@ void ValueTypeNode::initialize_fields(GraphKit* kit, MultiNode* multi, uint& bas
     assert(!field->is_flat() || field->type()->is_value_klass(), "must be a value type");
     if (field->is_flat()) {
       // Flat value type field
-      ValueTypeNode* vt = make_uninitialized(gvn, type->as_value_klass(), field->is_null_free());
+      ValueTypeNode* vt = make_uninitialized(gvn, type->as_value_klass(), field->is_null_checked());
       vt->initialize_fields(kit, multi, base_input, in, true, null_check_region);
-      if (!field->is_null_free()) {
+      if (!field->is_null_checked()) {
         assert(field->null_marker_offset() != -1, "inconsistency");
         Node* null_marker_field_vt = nullptr;
         if (multi->is_Start()) {
@@ -2127,13 +2127,13 @@ void LoadFlatNode::collect_field_types(ciValueKlass* vk, const Type** field_type
     ciField* field = vk->declared_nonstatic_field_at(i);
     if (field->is_flat()) {
       ciValueKlass* field_klass = field->type()->as_value_klass();
-      collect_field_types(field_klass, field_types, idx, limit, field->is_null_free(), trust_null_free_oop && field->is_null_free());
-      idx += field_klass->nof_nonstatic_fields() + (field->is_null_free() ? 0 : 1);
+      collect_field_types(field_klass, field_types, idx, limit, field->is_null_checked(), trust_null_free_oop && field->is_null_checked());
+      idx += field_klass->nof_nonstatic_fields() + (field->is_null_checked() ? 0 : 1);
       continue;
     }
 
     const Type* field_type = Type::get_const_type(field->type());
-    if (trust_null_free_oop && field->is_null_free()) {
+    if (trust_null_free_oop && field->is_null_checked()) {
       field_type = field_type->filter(TypePtr::NOTNULL);
     }
 
@@ -2158,8 +2158,8 @@ ValueTypeNode* LoadFlatNode::collect_projs(GraphKit* kit, ciValueKlass* vk, int 
     Node* field_value;
     if (field->is_flat()) {
       ciValueKlass* field_klass = field->type()->as_value_klass();
-      field_value = collect_projs(kit, field_klass, proj_con, field->is_null_free());
-      proj_con += field_klass->nof_nonstatic_fields() + (field->is_null_free() ? 0 : 1);
+      field_value = collect_projs(kit, field_klass, proj_con, field->is_null_checked());
+      proj_con += field_klass->nof_nonstatic_fields() + (field->is_null_checked() ? 0 : 1);
     } else {
       field_value = gvn.transform(new ProjNode(this, proj_con));
       proj_con++;
