@@ -120,6 +120,7 @@ Array<u1>* FieldInfoStream::create_FieldInfoStream(GrowableArray<FieldInfo>* fie
     }
     if (fi_ref->field_flags().has_null_marker()) {
       assert(fi_ref->null_marker_offset() == fi.null_marker_offset(), "Must be");
+      assert(fi_ref->null_marker_type() == fi.null_marker_type(), "Must be");
     }
   }
 #endif // ASSERT

@@ -39,6 +39,7 @@
 //             before writing a new value. Still for null-restricted fields, if getfield reads a null pointer
 //             from the receiver, it means that the field was not initialized yet, and getfield must substitute
 //             the null reference with the default value of the field's class.
+//             (TODO: not necessary with strict fields, any code that implements this should be deleted)
 // NULL_FREE_NON_ATOMIC_FLAT : This layout is the simplest form of flattening. Any field embedded inside the flat field
 //             can be accessed independently. The field is null-restricted, meaning putfield must perform a
 //             null-check before performing a field update.

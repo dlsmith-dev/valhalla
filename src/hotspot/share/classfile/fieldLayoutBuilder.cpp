@@ -455,8 +455,9 @@ LayoutRawBlock* FieldLayout::insert_field_block(LayoutRawBlock* slot, LayoutRawB
   }
   if (LayoutKindHelper::is_nullable_flat(block->layout_kind())) {
     int nm_offset = block->value_klass()->null_marker_offset() - block->value_klass()->payload_offset() + block->offset();
-    _field_info->adr_at(block->field_index())->set_null_marker_offset(nm_offset);
-    _value_field_layout_info_array->adr_at(block->field_index())->set_null_marker_offset(nm_offset);
+    BasicType nm_type = block->value_klass()->null_marker_type();
+    _field_info->adr_at(block->field_index())->set_null_marker_offset(nm_offset, nm_type);
+    _value_field_layout_info_array->adr_at(block->field_index())->set_null_marker_offset(nm_offset, nm_type);
   }
 
   return block;
@@ -632,25 +633,14 @@ void FieldLayout::shift_fields(int shift) {
       _field_info->adr_at(b->field_index())->set_offset(b->offset());
       if (LayoutKindHelper::is_nullable_flat(b->layout_kind())) {
         int new_nm_offset = _field_info->adr_at(b->field_index())->null_marker_offset() + shift;
-        _field_info->adr_at(b->field_index())->set_null_marker_offset(new_nm_offset);
-        _value_field_layout_info_array->adr_at(b->field_index())->set_null_marker_offset(new_nm_offset);
+        BasicType nm_type = _field_info->adr_at(b->field_index())->null_marker_type();
+        _field_info->adr_at(b->field_index())->set_null_marker_offset(new_nm_offset, nm_type);
+        _value_field_layout_info_array->adr_at(b->field_index())->set_null_marker_offset(new_nm_offset, nm_type);
       }
     }
     assert(b->block_kind() == LayoutRawBlock::EMPTY || b->offset() % b->alignment() == 0, "Must still be correctly aligned");
     b = b->next_block();
   }
-}
-
-LayoutRawBlock* FieldLayout::find_null_marker() {
-  LayoutRawBlock* b = _blocks;
-  while (b != nullptr) {
-    if (b->block_kind() == LayoutRawBlock::NULL_MARKER) {
-      return b;
-    }
-    b = b->next_block();
-  }
-  ShouldNotReachHere();
-  return nullptr;
 }
 
 void FieldLayout::remove_null_marker() {
@@ -669,7 +659,6 @@ void FieldLayout::remove_null_marker() {
     }
     b = b->next_block();
   }
-  ShouldNotReachHere(); // if we reach this point, the null marker was not found!
 }
 
 void FieldLayout::print(outputStream* output, bool is_static, const InstanceKlass* super, Array<ValueFieldLayoutInfo>* value_fields, bool dummy_field_is_reused_as_null_marker) {
@@ -789,6 +778,7 @@ FieldLayoutBuilder::FieldLayoutBuilder(const Symbol* classname, ClassLoaderData*
   _payload_alignment(-1),
   _payload_offset(-1),
   _null_marker_offset(-1),
+  _null_marker_type(T_ILLEGAL),
   _payload_size_in_bytes(-1),
   _null_free_non_atomic_layout_size_in_bytes(-1),
   _null_free_non_atomic_layout_alignment(-1),
@@ -1198,41 +1188,62 @@ void FieldLayoutBuilder::compute_value_class_layout() {
     // until a better fix is implemented (see JDK-8382361).
     if ((UseNullableAtomicValueFlattening || UseNullableNonAtomicValueFlattening)
          && _classname != vmSymbols::java_lang_Double() && _classname != vmSymbols::java_lang_Long()) {
-      // Looking if there's an empty slot inside the layout that could be used to store a null marker
-      LayoutRawBlock* b = _layout->first_field_block();
-      assert(b != nullptr, "A concrete value class must have at least one (possible dummy) field");
       int null_marker_offset = -1;
+      BasicType null_marker_type = T_ILLEGAL;
       if (_is_empty_value_class) {
-        // Reusing the dummy field as a field marker
+        // Reuse the dummy field as a null marker
+        LayoutRawBlock* b = _layout->first_field_block();
+        assert(b != nullptr, "A concrete value class must have at least one (possible dummy) field");
         assert(_field_info->adr_at(b->field_index())->name(_constant_pool) == vmSymbols::empty_marker_name(), "b must be the dummy field");
         null_marker_offset = b->offset();
-      } else {
-        while (b != _layout->last_block()) {
-          if (b->block_kind() == LayoutRawBlock::EMPTY) {
-            break;
+        null_marker_type = T_BYTE;
+      }
+      if (null_marker_offset == -1) {
+        // Find a null_checked reference field for a null marker
+        for (LayoutRawBlock* b = _layout->first_field_block();
+             b != _layout->last_block(); b = b->next_block()) {
+          if (b->block_kind() == LayoutRawBlock::REGULAR) {
+            FieldInfo* f = _field_info->adr_at(b->field_index());
+            if (f->field_flags().is_null_checked()) {
+              null_marker_offset = b->offset();
+              null_marker_type = Signature::basic_type(f->signature(_constant_pool));
+              assert(is_reference_type(null_marker_type), "null-checked field must have reference type");
+              break;
+            }
           }
-          b = b->next_block();
-        }
-        if (b != _layout->last_block()) {
-          // found an empty slot, register its offset from the beginning of the payload
-          null_marker_offset = b->offset();
-          LayoutRawBlock* marker = new LayoutRawBlock(LayoutRawBlock::NULL_MARKER, 1);
-          _layout->add_field_at_offset(marker, b->offset());
-        }
-        if (null_marker_offset == -1) { // no empty slot available to store the null marker, need to inject one
-          int last_offset = _layout->last_block()->offset();
-          LayoutRawBlock* marker = new LayoutRawBlock(LayoutRawBlock::NULL_MARKER, 1);
-          _layout->insert_field_block(_layout->last_block(), marker);
-          assert(marker->offset() == last_offset, "Null marker should have been inserted at the end");
-          null_marker_offset = marker->offset();
+          // TODO: look inside FLAT blocks
         }
       }
+      if (null_marker_offset == -1) {
+        // Add a null marker to an empty block
+        for (LayoutRawBlock* b = _layout->first_field_block();
+             b != _layout->last_block(); b = b->next_block()) {
+          if (b->block_kind() == LayoutRawBlock::EMPTY) {
+            // found an empty slot, register its offset from the beginning of the payload
+            LayoutRawBlock* marker = new LayoutRawBlock(LayoutRawBlock::NULL_MARKER, 1);
+            _layout->add_field_at_offset(marker, b->offset());
+            null_marker_offset = b->offset();
+            null_marker_type = T_BYTE;
+            break;
+          }
+        }
+      }
+      if (null_marker_offset == -1) {
+        // Inject a null marker at the end of the layout
+        LayoutRawBlock* marker = new LayoutRawBlock(LayoutRawBlock::NULL_MARKER, 1);
+        _layout->insert_field_block(_layout->last_block(), marker);
+        assert(marker->offset() == _layout->last_block()->offset(), "Null marker should have been inserted at the end");
+        null_marker_offset = marker->offset();
+        null_marker_type = T_BYTE;
+      }
+
       assert(null_marker_offset != -1, "Sanity check");
       // Now that the null marker is there, the size of the nullable layout must be computed
       int new_raw_size = _layout->last_block()->offset() - _layout->first_field_block()->offset();
       if (UseNullableNonAtomicValueFlattening) {
         _nullable_non_atomic_layout_size_in_bytes = new_raw_size;
         _null_marker_offset = null_marker_offset;
+        _null_marker_type = null_marker_type;
         _null_free_non_atomic_layout_alignment = _payload_alignment;
       }
       if (UseNullableAtomicValueFlattening) {
@@ -1241,14 +1252,13 @@ void FieldLayoutBuilder::compute_value_class_layout() {
         if (nullable_atomic_size <= (int)MAX_ATOMIC_OP_SIZE) {
           _nullable_atomic_layout_size_in_bytes = nullable_atomic_size;
           _null_marker_offset = null_marker_offset;
+          _null_marker_type = null_marker_type;
         }
       }
       if (_null_marker_offset == -1) { // No nullable layout has been accepted
-        // If the nullable layout is rejected, the NULL_MARKER block should be removed
-        // from the layout, otherwise it will appear anyway if the layout is printer
-        if (!_is_empty_value_class) {  // empty values don't have a dedicated NULL_MARKER block
-          _layout->remove_null_marker();
-        }
+        // If the nullable layout is rejected, any NULL_MARKER block should be removed
+        // from the layout, otherwise it will appear anyway if the layout is printed
+        _layout->remove_null_marker();
       }
     }
     // If the value class has an atomic or nullable atomic layout,
@@ -1272,16 +1282,16 @@ void FieldLayoutBuilder::compute_value_class_layout() {
         _layout->shift_fields(shift);
         _payload_offset = _layout->first_field_block()->offset();
         assert(is_aligned(_payload_offset, required_alignment), "Fields should have been shifted to respect the required alignment");
-        if (has_nullable_atomic_layout() || has_nullable_non_atomic_layout()) {
-          assert(!_is_empty_value_class, "Should not get here with empty values");
-          _null_marker_offset = _layout->find_null_marker()->offset();
+        if (_null_marker_offset != -1) {
+          _null_marker_offset = _null_marker_offset + shift;
         }
         _payload_alignment = required_alignment;
       } else {
         _null_free_atomic_layout_size_in_bytes = -1;
-        if (has_nullable_atomic_layout() && !has_nullable_non_atomic_layout() && !_is_empty_value_class) {  // empty values don't have a dedicated NULL_MARKER block
+        if (has_nullable_atomic_layout() && !has_nullable_non_atomic_layout()) {
           _layout->remove_null_marker();
           _null_marker_offset = -1;
+          _null_marker_type = T_ILLEGAL;
         }
         _nullable_atomic_layout_size_in_bytes = -1;
       }
@@ -1451,6 +1461,7 @@ void FieldLayoutBuilder::generate_acmp_maps() {
           last_idx = insert_map_at_offset(_nonoop_acmp_map, _oop_acmp_map, vk, field_offset, last_idx);
           if (LayoutKindHelper::is_nullable_flat(b->layout_kind())) {
             int null_marker_offset = b->offset() + vk->null_marker_offset_in_payload();
+            // TODO: is this harmless if the offset is already included?
             last_idx = insert_segment(_nonoop_acmp_map, null_marker_offset, 1, last_idx);
             // Important note: the implementation assumes that for nullable flat fields, if the
             // null marker is zero (field is null), then all the fields of the flat field are also
@@ -1541,6 +1552,7 @@ void FieldLayoutBuilder::epilogue() {
     _info->_nullable_atomic_layout_size_in_bytes = _nullable_atomic_layout_size_in_bytes;
     _info->_nullable_non_atomic_layout_size_in_bytes = _nullable_non_atomic_layout_size_in_bytes;
     _info->_null_marker_offset = _null_marker_offset;
+    _info->_null_marker_type = _null_marker_type;
     _info->_null_reset_value_offset = _static_layout->null_reset_value_offset();
     _info->_is_empty_value_klass = _is_empty_value_class;
   }
@@ -1642,6 +1654,7 @@ void FieldLayoutBuilder::epilogue() {
       }
       if (_null_marker_offset != -1) {
         st.print_cr("Null marker offset = %d", _null_marker_offset);
+        st.print_cr("Null marker type = %s", type2name(_null_marker_type));
       }
       st.print("Non-oop acmp map <offset,size>: ");
       for (int i = 0 ; i < _nonoop_acmp_map->length(); i++) {

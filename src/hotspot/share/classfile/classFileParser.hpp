@@ -93,6 +93,7 @@ class FieldLayoutInfo : public ResourceObj {
   int _nullable_atomic_layout_size_in_bytes;
   int _nullable_non_atomic_layout_size_in_bytes;
   int _null_marker_offset;
+  BasicType _null_marker_type;
   int _null_reset_value_offset;
   int _acmp_maps_offset;
   bool _has_nonstatic_fields;
@@ -106,7 +107,8 @@ class FieldLayoutInfo : public ResourceObj {
                       _null_free_non_atomic_size_in_bytes(-1), _null_free_non_atomic_alignment(-1),
                       _null_free_atomic_layout_size_in_bytes(-1), _nullable_atomic_layout_size_in_bytes(-1),
                       _nullable_non_atomic_layout_size_in_bytes(-1),
-                      _null_marker_offset(-1), _null_reset_value_offset(-1), _acmp_maps_offset(-1),
+                      _null_marker_offset(-1), _null_marker_type(T_ILLEGAL), _null_reset_value_offset(-1),
+                      _acmp_maps_offset(-1),
                       _has_nonstatic_fields(false), _is_naturally_atomic(false), _must_be_atomic(false),
                       _has_flat_fields(false), _is_empty_value_klass(false) { }
 };

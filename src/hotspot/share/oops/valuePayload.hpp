@@ -114,7 +114,6 @@ protected:
                           LayoutKind copy_layout_kind);
 
   inline void mark_as_non_null();
-  inline void mark_as_null();
 
   inline bool uses_absolute_addr() const;
 

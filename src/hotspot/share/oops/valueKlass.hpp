@@ -99,6 +99,7 @@ class ValueKlass: public InstanceKlass {
     int _nullable_non_atomic_size_in_bytes;  // size and alignment requirement for a nullable non-atomic layout, -1 if not available
     int _null_marker_offset;       // expressed as an offset from the beginning of the object for a heap buffered value
                                    // payload_offset must be subtracted to get the offset from the beginning of the payload
+    BasicType _null_marker_type;
 
     // When we can't intrinsify the substitutability check, we can still avoid the call to isSubstitutable at runtime if the
     // value object is small enough.  If all the fields are contained at once in a single long, we can load such a long from
@@ -258,8 +259,11 @@ class ValueKlass: public InstanceKlass {
   bool has_nullable_non_atomic_layout() const                 { return nullable_non_atomic_size_in_bytes() != -1; }
 
   int null_marker_offset() const                              { return members()._null_marker_offset; }
-  void set_null_marker_offset(int offset)                     { members()._null_marker_offset = offset; }
   int null_marker_offset_in_payload() const                   { return null_marker_offset() - payload_offset(); }
+  BasicType null_marker_type() const                          { return members()._null_marker_type; }
+  void set_null_marker_offset(int offset, BasicType type)     {
+    members()._null_marker_offset = offset; members()._null_marker_type = type;
+  }
 
   int fast_acmp_offset() const                                { return members()._fast_acmp_offset; }
   void set_fast_acmp_offset(int offset)                       { members()._fast_acmp_offset = offset; }
@@ -297,11 +301,6 @@ class ValueKlass: public InstanceKlass {
     *null_marker_address(payload) = 1;
   }
 
-  void mark_payload_as_null(address payload) const {
-    assert(supports_nullable_layouts(), " Must do");
-    *null_marker_address(payload) = 0;
-  }
-
   inline bool layout_has_null_marker(LayoutKind lk) const;
 
   inline bool is_layout_supported(LayoutKind lk) const;
@@ -314,7 +313,8 @@ class ValueKlass: public InstanceKlass {
 #endif
 
  private:
-  int collect_fields(GrowableArray<SigEntry>* sig, int base_off = 0, int null_marker_offset = -1);
+  int collect_fields(GrowableArray<SigEntry>* sig, int base_off = 0,
+                     int null_marker_offset = -1, BasicType null_marker_type = T_ILLEGAL);
 
   void cleanup_blobs();
 
@@ -395,6 +395,10 @@ class ValueKlass: public InstanceKlass {
 
   static ByteSize null_marker_offset_offset() {
     return byte_offset_of(Members, _null_marker_offset);
+  }
+
+  static ByteSize null_marker_type_offset() {
+    return byte_offset_of(Members, _null_marker_type);
   }
 
   static ByteSize fast_acmp_offset_offset() {

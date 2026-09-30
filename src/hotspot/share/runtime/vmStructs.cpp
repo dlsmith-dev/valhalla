@@ -225,6 +225,7 @@
   nonstatic_field(InstanceKlass,               _adr_value_klass_members,                      address)                               \
   nonstatic_field(ValueKlass::Members,         _payload_offset,                               int)                                   \
   nonstatic_field(ValueKlass::Members,         _null_marker_offset,                           int)                                   \
+  nonstatic_field(ValueKlass::Members,         _null_marker_type,                             BasicType)                                   \
   nonstatic_field(Klass,                       _kind,                                         const Klass::KlassKind)                \
   nonstatic_field(Klass,                       _super_check_offset,                           juint)                                 \
   nonstatic_field(Klass,                       _secondary_super_cache,                        Klass*)                                \

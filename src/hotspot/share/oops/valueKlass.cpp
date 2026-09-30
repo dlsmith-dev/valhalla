@@ -73,6 +73,7 @@ ValueKlass::Members::Members()
     _nullable_atomic_size_in_bytes(-1),
     _nullable_non_atomic_size_in_bytes(-1),
     _null_marker_offset(-1),
+    _null_marker_type(T_ILLEGAL),
     _fast_acmp_offset(-1),
     _fast_acmp_mask(0),
     _fast_hashcode_offset(-1),
@@ -177,7 +178,7 @@ bool ValueKlass::maybe_flat_in_array() {
 //
 // Value classes could also have fields in abstract super value classes.
 // Use a HierarchicalFieldStream to get them as well.
-int ValueKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off, int null_marker_offset) {
+int ValueKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off, int null_marker_offset, BasicType null_marker_type) {
   int count = 0;
   SigEntry::add_entry(sig, T_METADATA, name(), base_off);
   for (TopDownHierarchicalNonStaticFieldStreamBase fs(this); !fs.done(); fs.next()) {
@@ -190,8 +191,9 @@ int ValueKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off, int n
       if (!fs.is_null_checked()) {
         field_null_marker_offset = base_off + fs.null_marker_offset() - (base_off > 0 ? payload_offset() : 0);
       }
+      BasicType field_null_marker_type = fs.null_marker_type();
       Klass* vk = field_holder->get_value_type_field_klass(fs.index());
-      count += ValueKlass::cast(vk)->collect_fields(sig, offset, field_null_marker_offset);
+      count += ValueKlass::cast(vk)->collect_fields(sig, offset, field_null_marker_offset, field_null_marker_type);
     } else {
       BasicType bt = Signature::basic_type(fs.signature());
       SigEntry::add_entry(sig, bt,  fs.name(), offset);
@@ -200,7 +202,7 @@ int ValueKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off, int n
   }
   int offset = base_off + size_helper()*HeapWordSize - (base_off > 0 ? payload_offset() : 0);
   // Null markers are no real fields, add them manually at the end (C2 relies on this) of the flat fields
-  if (null_marker_offset != -1) {
+  if (null_marker_type == T_BYTE) { // TODO: need a dedicated BasicType
     SigEntry::add_null_marker(sig, name(), null_marker_offset);
     count++;
   }
@@ -574,6 +576,7 @@ void ValueKlass::Members::print_on(outputStream* st) const {
   st->print_cr(" - nullable atomic size (bytes):      %d", _nullable_atomic_size_in_bytes);
   st->print_cr(" - nullable non-atomic size (bytes):  %d", _nullable_non_atomic_size_in_bytes);
   st->print_cr(" - null marker offset:                %d", _null_marker_offset);
+  st->print_cr(" - null marker type:                  %d", _null_marker_type);
   st->print_cr(" - fast acmp offset:                  %d", _fast_acmp_offset);
   st->print_cr(" - fast acmp mask:                    " INT64_FORMAT_X_0, _fast_acmp_mask);
   st->print_cr(" - fast hashcode offset:              %d", _fast_hashcode_offset);

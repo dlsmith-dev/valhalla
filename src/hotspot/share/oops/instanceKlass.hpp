@@ -133,9 +133,12 @@ class ValueFieldLayoutInfo : public MetaspaceObj {
   ValueKlass* _klass;
   LayoutKind _kind;
   int _null_marker_offset; // null marker offset for this field, relative to the beginning of the current container
+  BasicType _null_marker_type;
 
  public:
-  ValueFieldLayoutInfo(): _klass(nullptr), _kind(LayoutKind::UNKNOWN), _null_marker_offset(-1)  {}
+  ValueFieldLayoutInfo(): _klass(nullptr), _kind(LayoutKind::UNKNOWN),
+                          _null_marker_offset(-1), _null_marker_type(T_ILLEGAL)  {
+  }
 
   ValueKlass* klass() const { return _klass; }
   void set_klass(ValueKlass* k) { _klass = k; }
@@ -150,7 +153,14 @@ class ValueFieldLayoutInfo : public MetaspaceObj {
     assert(_null_marker_offset != -1, "Not set");
     return _null_marker_offset;
   }
-  void set_null_marker_offset(int o) { _null_marker_offset = o; }
+  BasicType null_marker_type() const {
+    assert(_null_marker_type != T_ILLEGAL, "Not set");
+    return _null_marker_type;
+  }
+  void set_null_marker_offset(int o, BasicType t) {
+    _null_marker_offset = o;
+    _null_marker_type = t;
+  }
 
   void metaspace_pointers_do(MetaspaceClosure* it);
   MetaspaceObj::Type type() const { return ValueFieldLayoutInfoType; }
