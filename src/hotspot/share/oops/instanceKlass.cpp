@@ -189,7 +189,7 @@ void ValueFieldLayoutInfo::print_on(outputStream* st) const {
 // as the null-marker has to be considered as a pseudo-field which must
 // be kept consistent with the payload. The only kind of value class
 // that can be considered naturally atomic when nullable is the empty
-// value classes because the dummy field is re-used as a null-marker.
+// value classes because the null marker is the only field.
 bool InstanceKlass::is_naturally_atomic(bool null_free) const {
   assert(!is_identity_class(), "Doesn't make sense for an identity class");
   if (null_free) {

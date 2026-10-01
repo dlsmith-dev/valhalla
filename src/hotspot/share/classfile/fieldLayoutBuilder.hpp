@@ -242,7 +242,7 @@ class FieldLayout : public ResourceObj {
   void shift_fields(int shift);
   LayoutRawBlock* find_null_marker();
   void remove_null_marker();
-  void print(outputStream* output, bool is_static, const InstanceKlass* super, Array<ValueFieldLayoutInfo>* value_fields, bool dummy_field_is_reused_as_null_marker);
+  void print(outputStream* output, bool is_static, const InstanceKlass* super, Array<ValueFieldLayoutInfo>* value_fields);
 };
 
 
