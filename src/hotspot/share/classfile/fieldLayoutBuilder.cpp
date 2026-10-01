@@ -661,7 +661,7 @@ void FieldLayout::remove_null_marker() {
   }
 }
 
-void FieldLayout::print(outputStream* output, bool is_static, const InstanceKlass* super, Array<ValueFieldLayoutInfo>* value_fields, bool dummy_field_is_reused_as_null_marker) {
+void FieldLayout::print(outputStream* output, bool is_static, const InstanceKlass* super, Array<ValueFieldLayoutInfo>* value_fields) {
   ResourceMark rm;
   LayoutRawBlock* b = _blocks;
   while(b != _last) {
@@ -675,14 +675,6 @@ void FieldLayout::print(outputStream* output, bool is_static, const InstanceKlas
                       b->alignment(),
                       fi->name(_cp)->as_C_string(),
                       fi->signature(_cp)->as_C_string());
-
-        if (dummy_field_is_reused_as_null_marker) {
-          const bool is_dummy_field = fi->name(_cp)->fast_compare(vmSymbols::symbol_at(VM_SYMBOL_ENUM_NAME(empty_marker_name))) == 0;
-          if (is_dummy_field) {
-            output->print(" (reused as null-marker)");
-          }
-        }
-
         output->cr();
         break;
       }
@@ -956,7 +948,6 @@ void FieldLayoutBuilder::value_class_field_sorting() {
   _root_group->sort_by_size();
   _static_fields->sort_by_size();
   _payload_alignment = alignment;
-  assert(_has_nonstatic_fields || _is_abstract_value, "Concrete value types do not support zero instance size yet");
 }
 
 LayoutRawBlock* FieldLayoutBuilder::insert_contended_padding(LayoutRawBlock* slot) {
@@ -1051,7 +1042,6 @@ void FieldLayoutBuilder::compute_regular_layout() {
 void FieldLayoutBuilder::compute_value_class_layout() {
 
   // Test if the concrete value class is an empty class (no instance fields)
-  // and insert a dummy field if needed
   if (!_is_abstract_value) {
     bool declares_nonstatic_fields = false;
     for (FieldInfo fieldinfo : *_field_info) {
@@ -1064,18 +1054,7 @@ void FieldLayoutBuilder::compute_value_class_layout() {
     if (!declares_nonstatic_fields) {
       bool has_inherited_fields = _super_klass != nullptr && _super_klass->has_nonstatic_fields();
       if (!has_inherited_fields) {
-        // Inject ".empty" dummy field
         _is_empty_value_class = true;
-        FieldInfo::FieldFlags fflags(0);
-        fflags.update_injected(true);
-        AccessFlags aflags;
-        FieldInfo fi(aflags,
-                    (u2)vmSymbols::as_int(VM_SYMBOL_ENUM_NAME(empty_marker_name)),
-                    (u2)vmSymbols::as_int(VM_SYMBOL_ENUM_NAME(byte_signature)),
-                    0,
-                    fflags);
-        int idx = _field_info->append(fi);
-        _field_info->adr_at(idx)->set_index(idx);
       }
     }
   }
@@ -1112,7 +1091,6 @@ void FieldLayoutBuilder::compute_value_class_layout() {
       // regarding alignment constraints, but now that the full set of non-static fields is
       // known, compute which alignment to use, then set first allowed field offset.
 
-      assert(_has_nonstatic_fields, "Concrete value classes must have at least one field");
       if (_payload_alignment == -1) { // current class declares no local nonstatic fields
         _payload_alignment = _layout->super_min_align_required();
       }
@@ -1140,12 +1118,10 @@ void FieldLayoutBuilder::compute_value_class_layout() {
   _layout->add(_root_group->oop_fields());
   _layout->add(_root_group->small_primitive_fields());
 
-  LayoutRawBlock* first_field = _layout->first_field_block();
-  if (first_field != nullptr) {
+  if (_layout->first_field_block() != nullptr) {
     _payload_offset = _layout->first_field_block()->offset();
     _payload_size_in_bytes = _layout->last_block()->offset() - _layout->first_field_block()->offset();
   } else {
-    assert(_is_abstract_value, "Concrete value types must have at least one field");
     _payload_offset = _layout->blocks()->size();
     _payload_size_in_bytes = 0;
   }
@@ -1166,42 +1142,21 @@ void FieldLayoutBuilder::compute_value_class_layout() {
   bool vm_uses_flattening = UseFieldFlattening || UseArrayFlattening;
 
   if (!_is_abstract_value && vm_uses_flattening) { // Flat layouts are only for concrete value classes
-    // Validation of the non atomic layout
-    if (UseNullFreeNonAtomicValueFlattening && (!_must_be_atomic || _is_naturally_atomic)) {
-      _null_free_non_atomic_layout_size_in_bytes = _payload_size_in_bytes;
-      _null_free_non_atomic_layout_alignment = _payload_alignment;
-    }
 
-    // Next step is to compute the characteristics for a layout enabling atomic updates
-    if (UseNullFreeAtomicValueFlattening) {
-      int atomic_size = _payload_size_in_bytes == 0 ? 0 : round_up_power_of_2(_payload_size_in_bytes);
-      if (atomic_size <= (int)MAX_ATOMIC_OP_SIZE) {
-        _null_free_atomic_layout_size_in_bytes = atomic_size;
-      }
-    }
-
-    // Next step is the nullable layouts: they must include a null marker.
+    // First the nullable layouts: they must include a null marker.
     // Note about the special case of j.l.Double and j.l.Long: the introduction of
     // the NULLABLE_NON_ATOMIC_FLAT layout caused an increase of the size of their
     // instances which causes performance regression (see JDK-8379145).
     // The temporary solution is to simply disable nullable layouts for these classes
     // until a better fix is implemented (see JDK-8382361).
-    if ((UseNullableAtomicValueFlattening || UseNullableNonAtomicValueFlattening)
+    if ((UseNullableAtomicValueFlattening || UseNullableNonAtomicValueFlattening || _is_empty_value_class)
          && _classname != vmSymbols::java_lang_Double() && _classname != vmSymbols::java_lang_Long()) {
       int null_marker_offset = -1;
       BasicType null_marker_type = T_ILLEGAL;
-      if (_is_empty_value_class) {
-        // Reuse the dummy field as a null marker
-        LayoutRawBlock* b = _layout->first_field_block();
-        assert(b != nullptr, "A concrete value class must have at least one (possible dummy) field");
-        assert(_field_info->adr_at(b->field_index())->name(_constant_pool) == vmSymbols::empty_marker_name(), "b must be the dummy field");
-        null_marker_offset = b->offset();
-        null_marker_type = T_BYTE;
-      }
       if (null_marker_offset == -1) {
         // Find a null_checked reference field for a null marker
         for (LayoutRawBlock* b = _layout->first_field_block();
-             b != _layout->last_block(); b = b->next_block()) {
+             b != nullptr && b != _layout->last_block(); b = b->next_block()) {
           if (b->block_kind() == LayoutRawBlock::REGULAR) {
             FieldInfo* f = _field_info->adr_at(b->field_index());
             if (f->field_flags().is_null_checked()) {
@@ -1217,7 +1172,7 @@ void FieldLayoutBuilder::compute_value_class_layout() {
       if (null_marker_offset == -1) {
         // Add a null marker to an empty block
         for (LayoutRawBlock* b = _layout->first_field_block();
-             b != _layout->last_block(); b = b->next_block()) {
+             b != nullptr && b != _layout->last_block(); b = b->next_block()) {
           if (b->block_kind() == LayoutRawBlock::EMPTY) {
             // found an empty slot, register its offset from the beginning of the payload
             LayoutRawBlock* marker = new LayoutRawBlock(LayoutRawBlock::NULL_MARKER, 1);
@@ -1237,9 +1192,15 @@ void FieldLayoutBuilder::compute_value_class_layout() {
         null_marker_type = T_BYTE;
       }
 
-      assert(null_marker_offset != -1, "Sanity check");
       // Now that the null marker is there, the size of the nullable layout must be computed
       int new_raw_size = _layout->last_block()->offset() - _layout->first_field_block()->offset();
+      if (_is_empty_value_class) {
+          // null marker needs to be part of the payload, not optional
+          _payload_size_in_bytes = new_raw_size;
+          _payload_alignment = 1;
+          _null_marker_offset = null_marker_offset;
+          _null_marker_type = null_marker_type;
+      }
       if (UseNullableNonAtomicValueFlattening) {
         _nullable_non_atomic_layout_size_in_bytes = new_raw_size;
         _null_marker_offset = null_marker_offset;
@@ -1256,11 +1217,26 @@ void FieldLayoutBuilder::compute_value_class_layout() {
         }
       }
       if (_null_marker_offset == -1) { // No nullable layout has been accepted
-        // If the nullable layout is rejected, any NULL_MARKER block should be removed
+        // If the nullable layout is rejected, the NULL_MARKER block should be removed
         // from the layout, otherwise it will appear anyway if the layout is printed
         _layout->remove_null_marker();
       }
     }
+
+    // Next handle the null free non atomic layout
+    if (UseNullFreeNonAtomicValueFlattening && (!_must_be_atomic || _is_naturally_atomic)) {
+      _null_free_non_atomic_layout_size_in_bytes = _payload_size_in_bytes;
+      _null_free_non_atomic_layout_alignment = _payload_alignment;
+    }
+
+    // Next step is to compute the characteristics for a layout enabling atomic updates
+    if (UseNullFreeAtomicValueFlattening) {
+      int atomic_size = _payload_size_in_bytes == 0 ? 0 : round_up_power_of_2(_payload_size_in_bytes);
+      if (atomic_size <= (int)MAX_ATOMIC_OP_SIZE) {
+        _null_free_atomic_layout_size_in_bytes = atomic_size;
+      }
+    }
+
     // If the value class has an atomic or nullable atomic layout,
     // we want the raw layout to have the same alignment as those atomic layouts so access codes
     // could remain simple (single instruction without intermediate copy). This might require
@@ -1275,10 +1251,12 @@ void FieldLayoutBuilder::compute_value_class_layout() {
     if (has_nullable_atomic_layout() && required_alignment < nullable_atomic_layout_size_in_bytes()) {
       required_alignment = nullable_atomic_layout_size_in_bytes();
     }
-    int shift = (required_alignment - (first_field->offset() % required_alignment)) % required_alignment;
+    int shift = (required_alignment - (_layout->first_field_block()->offset() % required_alignment)) % required_alignment;
     if (shift != 0) {
-      if (required_alignment > _payload_alignment && !_layout->has_inherited_fields()) {
-        assert(_layout->first_field_block() != nullptr, "A concrete value class must have at least one (possible dummy) field");
+      assert(!_is_empty_value_class, "Should not get here with empty values");
+      assert(required_alignment > _payload_alignment, "should only shift when we've changed alignment");
+      if (!_layout->has_inherited_fields()) {
+        assert(_layout->first_field_block() != nullptr, "A concrete value class must have at least one field");
         _layout->shift_fields(shift);
         _payload_offset = _layout->first_field_block()->offset();
         assert(is_aligned(_payload_offset, required_alignment), "Fields should have been shifted to respect the required alignment");
@@ -1287,13 +1265,14 @@ void FieldLayoutBuilder::compute_value_class_layout() {
         }
         _payload_alignment = required_alignment;
       } else {
-        _null_free_atomic_layout_size_in_bytes = -1;
+        // remove atomic layouts
         if (has_nullable_atomic_layout() && !has_nullable_non_atomic_layout()) {
           _layout->remove_null_marker();
           _null_marker_offset = -1;
           _null_marker_type = T_ILLEGAL;
         }
         _nullable_atomic_layout_size_in_bytes = -1;
+        _null_free_atomic_layout_size_in_bytes = -1;
       }
     } else {
       _payload_alignment = required_alignment;
@@ -1611,10 +1590,9 @@ void FieldLayoutBuilder::epilogue() {
       st.print_cr("Layout of class %s@%p", _classname->as_C_string(), _loader_data);
     }
     st.print_cr("Instance fields:");
-    const bool dummy_field_is_reused_as_null_marker = _is_empty_value_class && _null_marker_offset != -1;
-    _layout->print(&st, false, _super_klass, _value_field_layout_info_array, dummy_field_is_reused_as_null_marker);
+    _layout->print(&st, false, _super_klass, _value_field_layout_info_array);
     st.print_cr("Static fields:");
-    _static_layout->print(&st, true, nullptr, _value_field_layout_info_array, false);
+    _static_layout->print(&st, true, nullptr, _value_field_layout_info_array);
     st.print_cr("Instance size = %d bytes", _info->_instance_size * wordSize);
     if (_is_concrete_value) {
       st.print_cr("First field offset = %d", _payload_offset);

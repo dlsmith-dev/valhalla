@@ -216,6 +216,17 @@ public class FieldLayoutAnalyzer {
     boolean hasNullableNonAtomicLayout() { return nullableNonAtomicLayoutSize != -1; }
     boolean hasNullMarker() {return nullMarkerOffset != -1; }
 
+    boolean isEmptyValue() {
+      if (!isValue) return false;
+      for (FieldBlock fb : nonStaticFields) {
+        if (fb.type() == BlockType.INHERITED || fb.type() == BlockType.REGULAR ||
+            fb.type() == BlockType.FLAT) {
+          return false;
+        }
+      }
+      return true;
+    }
+
     int getSize(LayoutKind layoutKind) {
       switch(layoutKind) {
         case NON_FLAT:
@@ -366,9 +377,8 @@ public class FieldLayoutAnalyzer {
           cl.nullableNonAtomicLayoutAlignment = Integer.parseInt(size_align[1]);
         }
         lo.moveToNextLine();
-        // Null marker offset = 15 (if class has a nullable flat layout)
-        if (cl.nullableAtomicLayoutSize != -1 || cl.nullableNonAtomicLayoutSize != -1) {
-          Asserts.assertTrue(lo.getCurrentLine().startsWith("Null marker offset"));
+        // Null marker offset = 15 (optional)
+        if (lo.getCurrentLine().startsWith("Null marker offset")) {
           String[] nullMarkerLine = lo.getCurrentLine().split("\\s+");
           cl.nullMarkerOffset = Integer.parseInt(nullMarkerLine[4]);
           lo.moveToNextLine();
@@ -713,7 +723,7 @@ public class FieldLayoutAnalyzer {
           last_type = block.type;
           if (block.type() == BlockType.NULL_MARKER) {
             Asserts.assertTrue(layout.hasNullMarker());
-            Asserts.assertTrue(layout.hasNullableAtomicLayout() || layout.hasNullableNonAtomicLayout());
+            Asserts.assertTrue(layout.hasNullableAtomicLayout() || layout.hasNullableNonAtomicLayout() || layout.isEmptyValue());
             Asserts.assertEQ(block.offset(), layout.nullMarkerOffset);
           }
           if (block.type() == BlockType.EMPTY && block.offset() >= layout.firstFieldOffset) has_empty_slot = true;
@@ -721,6 +731,10 @@ public class FieldLayoutAnalyzer {
         // null marker should not be added at the end of the layout if there's an empty slot
         Asserts.assertTrue(last_type != BlockType.NULL_MARKER || has_empty_slot == false,
                           "Problem detected in layout of class " + layout.name);
+        if (layout.isEmptyValue()) {
+          Asserts.assertTrue(last_type == BlockType.NULL_MARKER,
+                            "Expected null marker at end for class " + layout.name);
+        }
         // static layout => must not have NULL_MARKERS because static fields are never flat
         for (FieldBlock block : layout.staticFields) {
           Asserts.assertNotEquals(block.type(), BlockType.NULL_MARKER);
@@ -769,7 +783,7 @@ public class FieldLayoutAnalyzer {
     }
     int fieldOffset = offset - cl.firstFieldOffset;
     for (FieldBlock fb : cl.nonStaticFields) {
-      if (fb.isRegular() && !fb.name().equals("\".empty\"")) {
+      if (fb.isRegular()) {
         for (int i = fieldOffset + fb.offset(); i < fieldOffset + fb.offset() + fb.size(); i++) {
           Asserts.assertFalse(bitmap[i], "Overlap in field at offset " + i + " of class " + cl.name);
           bitmap[i] = true;
@@ -796,7 +810,7 @@ public class FieldLayoutAnalyzer {
       baseOffset = baseOffset - layout.firstFieldOffset;
     }
     for (FieldBlock block : layout.nonStaticFields) {
-      if (block.isRegular() && !block.name().equals("\".empty\"")) {
+      if (block.isRegular()) {
         for (int i = baseOffset + block.offset(); i <  baseOffset +block.offset() + block.size(); i++) {
           Asserts.assertFalse(bitmap[i], "Overlap in field at offset " + i + " of class " + layout.name);
           bitmap[i] = true;
