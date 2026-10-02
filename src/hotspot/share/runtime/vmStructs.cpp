@@ -1644,6 +1644,7 @@
   declare_constant(T_OBJECT)                                              \
   declare_constant(T_ARRAY)                                               \
   declare_constant(T_VOID)                                                \
+  declare_constant(T_NULLMARKER)                                          \
   declare_constant(T_ADDRESS)                                             \
   declare_constant(T_NARROWOOP)                                           \
   declare_constant(T_METADATA)                                            \

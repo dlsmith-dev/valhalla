@@ -712,11 +712,12 @@ enum BasicType : u1 {
   T_ARRAY       = 13,
   T_VOID        = 14,
   T_FLAT_ELEMENT = 15, // Not a true BasicType, only used in layout helpers of flat arrays
-  T_ADDRESS     = 16,
-  T_NARROWOOP   = 17,
-  T_METADATA    = 18,
-  T_NARROWKLASS = 19,
-  T_CONFLICT    = 20, // for stack value type with conflicting contents
+  T_NULLMARKER  = 16,
+  T_ADDRESS     = 17,
+  T_NARROWOOP   = 18,
+  T_METADATA    = 19,
+  T_NARROWKLASS = 20,
+  T_CONFLICT    = 21, // for stack value type with conflicting contents
   T_ILLEGAL     = 99
 };
 
@@ -836,7 +837,8 @@ enum BasicTypeSize {
   T_NARROWOOP_size   = 1,
   T_NARROWKLASS_size = 1,
   T_VOID_size        = 0,
-  T_FLAT_ELEMENT_size = 0
+  T_FLAT_ELEMENT_size = 0,
+  T_NULLMARKER_SIZE  = 1,
 };
 
 // this works on valid parameter types but not T_VOID, T_CONFLICT, etc.
@@ -873,7 +875,8 @@ enum ArrayElementSize {
   T_NARROWOOP_aelem_bytes   = 4,
   T_NARROWKLASS_aelem_bytes = 4,
   T_VOID_aelem_bytes        = 0,
-  T_FLAT_ELEMENT_aelem_bytes = 0
+  T_FLAT_ELEMENT_aelem_bytes = 0,
+  T_NULLMARKER_aelem_bytes  = 1,
 };
 
 extern int _type2aelembytes[T_CONFLICT+1]; // maps a BasicType to nof bytes used by its array element

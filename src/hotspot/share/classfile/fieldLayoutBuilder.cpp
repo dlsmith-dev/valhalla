@@ -1178,7 +1178,7 @@ void FieldLayoutBuilder::compute_value_class_layout() {
             LayoutRawBlock* marker = new LayoutRawBlock(LayoutRawBlock::NULL_MARKER, 1);
             _layout->add_field_at_offset(marker, b->offset());
             null_marker_offset = b->offset();
-            null_marker_type = T_BYTE;
+            null_marker_type = T_NULLMARKER;
             break;
           }
         }
@@ -1189,7 +1189,7 @@ void FieldLayoutBuilder::compute_value_class_layout() {
         _layout->insert_field_block(_layout->last_block(), marker);
         assert(marker->offset() == _layout->last_block()->offset(), "Null marker should have been inserted at the end");
         null_marker_offset = marker->offset();
-        null_marker_type = T_BYTE;
+        null_marker_type = T_NULLMARKER;
       }
 
       // Now that the null marker is there, the size of the nullable layout must be computed
