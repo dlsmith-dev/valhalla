@@ -110,6 +110,7 @@ ciField::ciField(ciInstanceKlass* klass, int index, Bytecodes::Code bc) :
 
   _is_null_checked = false;
   _null_marker_offset = -1;
+  _null_marker_type = T_ILLEGAL;
 
   // Get the field's declared holder.
   //
@@ -248,6 +249,7 @@ ciField::ciField(ciField* declared_field, ciField* subfield) {
   _is_flat = false;
   _is_null_checked = false;
   _null_marker_offset = -1;
+  _null_marker_type = T_ILLEGAL;
   _original_holder = (subfield->_original_holder != nullptr) ? subfield->_original_holder : subfield->_holder;
   _layout_kind = LayoutKind::UNKNOWN;
 }
@@ -277,6 +279,7 @@ ciField::ciField(ciField* declared_field) {
   _is_flat = false;
   _is_null_checked = false;
   _null_marker_offset = -1;
+  _null_marker_type = T_ILLEGAL;
   _original_holder = nullptr;
   _layout_kind = LayoutKind::UNKNOWN;
 }
@@ -317,8 +320,10 @@ void ciField::initialize_from(fieldDescriptor* fd) {
   if (fd->has_null_marker()) {
     ValueFieldLayoutInfo* li = field_holder->value_field_layout_info_adr(fd->index());
     _null_marker_offset = li->null_marker_offset();
+    _null_marker_type = li->null_marker_type();
   } else {
     _null_marker_offset = -1;
+    _null_marker_type = T_ILLEGAL;
   }
   _original_holder = nullptr;
   _layout_kind = fd->is_flat() ? fd->layout_kind() : LayoutKind::UNKNOWN;
@@ -534,6 +539,7 @@ void ciField::print() const {
   tty->print(" is_flat=%s", bool_to_str(_is_flat));
   tty->print(" is_null_checked=%s", bool_to_str(_is_null_checked));
   tty->print(" null_marker_offset=%d", _null_marker_offset);
+  tty->print(" null_marker_type=%d", _null_marker_type);
   tty->print(">");
 }
 

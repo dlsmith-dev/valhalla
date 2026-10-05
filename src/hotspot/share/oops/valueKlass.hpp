@@ -291,14 +291,13 @@ class ValueKlass: public InstanceKlass {
     return is_payload_marked_as_null(payload);
   }
 
-  bool is_payload_marked_as_null(address payload) const {
-    assert(supports_nullable_layouts(), " Must do");
-    return *null_marker_address(payload) == 0;
-  }
+  bool is_payload_marked_as_null(address payload) const;
 
   void mark_payload_as_non_null(address payload) const {
     assert(supports_nullable_layouts(), " Must do");
-    *null_marker_address(payload) = 1;
+    if (null_marker_type() == T_NULLMARKER) {
+      *null_marker_address(payload) = 1;
+    }
   }
 
   inline bool layout_has_null_marker(LayoutKind lk) const;
@@ -313,8 +312,7 @@ class ValueKlass: public InstanceKlass {
 #endif
 
  private:
-  int collect_fields(GrowableArray<SigEntry>* sig, int base_off = 0,
-                     int null_marker_offset = -1, BasicType null_marker_type = T_ILLEGAL);
+  int collect_fields(GrowableArray<SigEntry>* sig, int base_off = 0, int null_marker_offset = -1);
 
   void cleanup_blobs();
 

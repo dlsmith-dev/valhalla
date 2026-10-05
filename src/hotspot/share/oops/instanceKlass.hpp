@@ -473,6 +473,7 @@ class InstanceKlass: public Klass {
   bool is_class_in_loadable_descriptors_attribute(Symbol* name) const;
 
   int field_null_marker_offset(int index) const { return value_field_layout_info(index).null_marker_offset(); }
+  int field_null_marker_type(int index) const { return value_field_layout_info(index).null_marker_type(); }
 
   // Number of Java declared fields
   int java_fields_count() const;

@@ -1500,7 +1500,7 @@ Node* MemNode::can_see_stored_value(Node* st, PhaseValues* phase) const {
 
         ciValueKlass* vk = phase->type(init_value)->value_klass();
         int field_offset_in_payload = ld_adr_type->field_offset().get();
-        if (field_offset_in_payload == vk->null_marker_offset_in_payload()) {
+        if (field_offset_in_payload == vk->null_marker_offset_in_payload() && vk->null_marker_type() == T_NULLMARKER) {
           return init_value->as_ValueType()->get_null_marker();
         } else {
           return init_value->as_ValueType()->field_value_by_offset(field_offset_in_payload + vk->payload_offset(), true);

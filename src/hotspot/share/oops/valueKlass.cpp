@@ -105,6 +105,21 @@ address ValueKlass::calculate_members_address() const {
   return end_of_instance_klass();
 }
 
+bool ValueKlass::is_payload_marked_as_null(address payload) const {
+  assert(supports_nullable_layouts(), " Must do");
+  jbyte* nm_addr = null_marker_address(payload);
+  if (null_marker_type() == T_NULLMARKER) {
+    return *nm_addr == 0;
+  } else {
+    assert(is_reference_type(null_marker_type()), "unexpected null marker type");
+    if (UseCompressedOops) {
+      return HeapAccess<>::oop_load(reinterpret_cast<narrowOop*>(nm_addr)) == nullptr;
+    } else {
+      return HeapAccess<>::oop_load(reinterpret_cast<oop*>(nm_addr)) == nullptr;
+    }
+  }
+}
+
 oop ValueKlass::null_reset_value() const {
   assert(is_initialized() || is_being_initialized() || is_in_error_state(), "null reset value is set at the beginning of initialization");
   oop val = java_mirror()->obj_field_acquire(null_reset_value_offset());
@@ -178,7 +193,7 @@ bool ValueKlass::maybe_flat_in_array() {
 //
 // Value classes could also have fields in abstract super value classes.
 // Use a HierarchicalFieldStream to get them as well.
-int ValueKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off, int null_marker_offset, BasicType null_marker_type) {
+int ValueKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off, int null_marker_offset) {
   int count = 0;
   SigEntry::add_entry(sig, T_METADATA, name(), base_off);
   for (TopDownHierarchicalNonStaticFieldStreamBase fs(this); !fs.done(); fs.next()) {
@@ -191,9 +206,8 @@ int ValueKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off, int n
       if (!fs.is_null_checked()) {
         field_null_marker_offset = base_off + fs.null_marker_offset() - (base_off > 0 ? payload_offset() : 0);
       }
-      BasicType field_null_marker_type = fs.null_marker_type();
       Klass* vk = field_holder->get_value_type_field_klass(fs.index());
-      count += ValueKlass::cast(vk)->collect_fields(sig, offset, field_null_marker_offset, field_null_marker_type);
+      count += ValueKlass::cast(vk)->collect_fields(sig, offset, field_null_marker_offset);
     } else {
       BasicType bt = Signature::basic_type(fs.signature());
       SigEntry::add_entry(sig, bt,  fs.name(), offset);
@@ -201,8 +215,8 @@ int ValueKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off, int n
     }
   }
   int offset = base_off + size_helper()*HeapWordSize - (base_off > 0 ? payload_offset() : 0);
-  // Null markers are no real fields, add them manually at the end (C2 relies on this) of the flat fields
-  if (null_marker_type == T_BYTE) { // TODO: need a dedicated BasicType
+  // Null markers are not real fields, add them manually at the end (C2 relies on this) of the flat fields
+  if (null_marker_offset != -1) {
     SigEntry::add_null_marker(sig, name(), null_marker_offset);
     count++;
   }

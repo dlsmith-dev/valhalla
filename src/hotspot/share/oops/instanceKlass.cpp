@@ -193,7 +193,7 @@ void ValueFieldLayoutInfo::print_on(outputStream* st) const {
 // value classes because the null marker is the only field.
 bool InstanceKlass::is_naturally_atomic(bool null_free) const {
   assert(!is_identity_class(), "Doesn't make sense for an identity class");
-  if (null_free) {
+  if (null_free || ValueKlass::cast(this)->null_marker_type() != T_NULLMARKER) {
     // No extra null-marker, just check the layout of the fields
     return _misc_flags.is_naturally_atomic();
   } else {

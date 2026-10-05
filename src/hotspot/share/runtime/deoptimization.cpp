@@ -1299,10 +1299,12 @@ static int reassign_fields_by_klass(InstanceKlass* klass, frame* fr, RegisterMap
       offset -= ValueKlass::cast(vk)->payload_offset(); // Adjust offset to omit oop header
       svIndex = reassign_fields_by_klass(vk, fr, reg_map, sv, svIndex, obj, offset, CHECK_0);
       if (!fields->at(i)._is_null_free) {
-        ScopeValue* scope_field = sv->field_at(svIndex);
-        StackValue* value = StackValue::create_stack_value(fr, reg_map, scope_field);
-        int nm_offset = offset + ValueKlass::cast(vk)->null_marker_offset();
-        obj->bool_field_put(nm_offset, value->get_jint() & 1);
+        if (ValueKlass::cast(vk)->null_marker_type() == T_NULLMARKER) {
+          ScopeValue* scope_field = sv->field_at(svIndex);
+          StackValue* value = StackValue::create_stack_value(fr, reg_map, scope_field);
+          int nm_offset = offset + ValueKlass::cast(vk)->null_marker_offset();
+          obj->bool_field_put(nm_offset, value->get_jint() & 1);
+        }
         svIndex++;
       }
       continue; // Continue because we don't need to increment svIndex
@@ -1396,7 +1398,7 @@ void Deoptimization::reassign_flat_array_elements(frame* fr, RegisterMap* reg_ma
     ObjectValue* val = sv->field_at(i)->as_ObjectValue();
     int offset = base_offset + (i << Klass::layout_helper_log2_element_size(vak->layout_helper()));
     reassign_fields_by_klass(vk, fr, reg_map, val, 0, (oop)obj, offset, CHECK);
-    if (!obj->is_null_free_array()) {
+    if (!obj->is_null_free_array() && vk->null_marker_type() == T_NULLMARKER) {
       jboolean null_marker_value;
       if (val->has_properties()) {
         null_marker_value = StackValue::create_stack_value(fr, reg_map, val->properties())->get_jint() & 1;

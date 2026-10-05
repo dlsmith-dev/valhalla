@@ -259,7 +259,7 @@ void fieldDescriptor::print_on_for(outputStream* st, oop obj, int indent, const 
           vk->do_nonstatic_fields(&print_field);
         }
 
-        if (field_flags().has_null_marker()) {
+        if (field_flags().has_null_marker() && vk->null_marker_type() == T_NULLMARKER) {
           for (int i = 0; i < indent + 1; i++) st->print("  ");
           st->print_cr(" - [null_marker] @%d %s",
                     field_offset_in_obj + vk->null_marker_offset_in_payload(),

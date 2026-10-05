@@ -240,7 +240,7 @@ Node* ValueTypeNode::field_value_by_offset(int offset, bool recursive) const {
   // Flat value type field
   ValueTypeNode* vt = value->as_ValueType();
   assert(field->is_flat(), "must be flat");
-  if (offset == field->null_marker_offset()) {
+  if (offset == field->null_marker_offset() && field->null_marker_type() == T_NULLMARKER) {
     return vt->get_null_marker();
   } else {
     int sub_offset = offset - field->offset_in_bytes(); // Offset of the flattened field inside the declared field
@@ -458,7 +458,7 @@ void ValueTypeNode::store_flat(GraphKit* kit, Node* base, Node* ptr, bool atomic
   }
 
   if (!do_atomic) {
-    if (!null_free) {
+    if (!null_free && vk->null_marker_type() == T_NULLMARKER) {
       int nm_offset = vk->null_marker_offset_in_payload();
       Node* nm_ptr = kit->basic_plus_adr(base, ptr, nm_offset);
       const TypePtr* nm_ptr_type = (decorators & C2_MISMATCHED) == 0 ? kit->gvn().type(nm_ptr)->is_ptr() : TypeRawPtr::BOTTOM;
@@ -1531,22 +1531,27 @@ ValueTypeNode* ValueTypeNode::make_from_flat_impl(GraphKit* kit, ciValueKlass* v
     do_atomic = false;
   }
 
-  if (!do_atomic) {
+  if (do_atomic) {
+    assert(!immutable_memory, "immutable memory does not need explicit atomic access");
+    return LoadFlatNode::load(kit, vk, base, ptr, null_free, trust_null_free_oop, decorators);
+  } else {
     ValueTypeNode* vt = make_uninitialized(kit->gvn(), vk, null_free);
+    vt->load(kit, base, ptr, immutable_memory, trust_null_free_oop, decorators);
     if (!null_free) {
-      int nm_offset = vk->null_marker_offset_in_payload();
-      Node* nm_ptr = kit->basic_plus_adr(base, ptr, nm_offset);
+      Node* nm_ptr = kit->basic_plus_adr(base, ptr, vk->null_marker_offset_in_payload());
       const TypePtr* nm_ptr_type = (decorators & C2_MISMATCHED) == 0 ? gvn.type(nm_ptr)->is_ptr() : TypeRawPtr::BOTTOM;
-      Node* nm_value = kit->access_load_at(base, nm_ptr, nm_ptr_type, TypeInt::BOOL, T_BOOLEAN, decorators);
+      Node* nm_value = nullptr;
+      if (vk->null_marker_type() == T_NULLMARKER) {
+        nm_value = kit->access_load_at(base, nm_ptr, nm_ptr_type, TypeInt::BOOL, T_BOOLEAN, decorators);
+      } else {
+        assert(is_reference_type(vk->null_marker_type()), "unexpected null marker type");
+        Node* oop = vt->field_value_by_offset(vk->null_marker_offset(), true);
+        nm_value = gvn.transform(new Conv2BNode(oop));
+      }
       vt->set_req(NullMarker, nm_value);
     }
-
-    vt->load(kit, base, ptr, immutable_memory, trust_null_free_oop, decorators);
     return gvn.transform(vt)->as_ValueType();
   }
-
-  assert(!immutable_memory, "immutable memory does not need explicit atomic access");
-  return LoadFlatNode::load(kit, vk, base, ptr, null_free, trust_null_free_oop, decorators);
 }
 
 ValueTypeNode* ValueTypeNode::make_from_flat_array(GraphKit* kit, ciValueKlass* vk, Node* base, Node* idx) {
@@ -2079,8 +2084,21 @@ bool LoadFlatNode::expand_non_atomic(PhaseIterGVN& igvn) const {
       Node* null_marker_ptr = kit.basic_plus_adr(base, ptr, _vk->null_marker_offset_in_payload());
       const TypePtr* null_marker_ptr_type = null_marker_ptr->Value(&igvn)->is_ptr();
       igvn.set_type(null_marker_ptr, null_marker_ptr_type);
-      Node* null_marker_value = kit.access_load_at(base, null_marker_ptr, null_marker_ptr_type, TypeInt::BOOL, T_BOOLEAN, _decorators);
-      igvn.replace_node(proj_out, null_marker_value);
+      Node* nm_value;
+      if (_vk->null_marker_type() == T_NULLMARKER) {
+        nm_value = kit.access_load_at(base, null_marker_ptr, null_marker_ptr_type, TypeInt::BOOL, T_BOOLEAN, _decorators);
+      } else {
+        assert(is_reference_type(_vk->null_marker_type()), "unexpected null marker type");
+        Node* oop;
+        if (UseCompressedOops) {
+          Node* noop = kit.access_load_at(base, null_marker_ptr, null_marker_ptr_type, TypeNarrowOop::BOTTOM, T_NARROWOOP, _decorators);
+          oop = igvn.transform(new DecodeNNode(noop, TypeInstPtr::BOTTOM));
+        } else {
+          oop = kit.access_load_at(base, null_marker_ptr, null_marker_ptr_type, TypeInstPtr::BOTTOM, T_OBJECT, _decorators);
+        }
+        nm_value = igvn.transform(new Conv2BNode(oop));
+      }
+      igvn.replace_node(proj_out, nm_value);
     }
   }
 
@@ -2197,9 +2215,16 @@ void LoadFlatNode::expand_projs_atomic(PhaseIterGVN& igvn, Node* ctrl, Node* pay
       return;
     }
 
-    int null_marker_offset = _vk->null_marker_offset_in_payload();
-    Node* null_marker_value = get_payload_value(igvn, ctrl, payload_bt, payload, TypeInt::BOOL, T_BOOLEAN, null_marker_offset);
-    igvn.replace_node(proj_out, null_marker_value);
+    int nm_offset = _vk->null_marker_offset_in_payload();
+    Node* nm_value;
+    if (_vk->null_marker_type() == T_NULLMARKER) {
+      nm_value = get_payload_value(igvn, ctrl, payload_bt, payload, TypeInt::BOOL, T_BOOLEAN, nm_offset);
+    } else {
+      assert(is_reference_type(_vk->null_marker_type()), "unexpected null marker type");
+      Node* oop = get_payload_value(igvn, ctrl, payload_bt, payload, TypeInstPtr::BOTTOM, T_OBJECT, nm_offset);
+      nm_value = igvn.transform(new Conv2BNode(oop));
+    }
+    igvn.replace_node(proj_out, nm_value);
   }
 }
 
@@ -2280,7 +2305,7 @@ bool StoreFlatNode::expand_non_atomic(PhaseIterGVN& igvn) const {
     kit.access_store_at(base, field_ptr, field_ptr_type, field_value, igvn.type(field_value), field->type()->basic_type(), _decorators);
   }
 
-  if (!_null_free) {
+  if (!_null_free && vk->null_marker_type() == T_NULLMARKER) {
     Node* null_marker_ptr = kit.basic_plus_adr(base, ptr, vk->null_marker_offset_in_payload());
     const TypePtr* null_marker_ptr_type = null_marker_ptr->Value(&igvn)->is_ptr();
     igvn.set_type(null_marker_ptr, null_marker_ptr_type);
@@ -2356,7 +2381,7 @@ Node* StoreFlatNode::convert_to_payload(PhaseIterGVN& igvn, Node* ctrl, ValueTyp
   ciValueKlass* vk = igvn.type(value)->value_klass();
   BasicType payload_bt = vk->atomic_size_to_basic_type(null_free);
   Node* payload = igvn.zerocon(payload_bt);
-  if (!null_free) {
+  if (!null_free && vk->null_marker_type() == T_NULLMARKER) {
     // Set the null marker
     payload = set_payload_value(igvn, payload_bt, payload, T_BOOLEAN, value->get_null_marker(), vk->null_marker_offset_in_payload());
   }

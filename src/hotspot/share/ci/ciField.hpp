@@ -55,6 +55,7 @@ private:
   bool             _is_flat;
   bool             _is_null_checked;
   int              _null_marker_offset;
+  BasicType        _null_marker_type;
   ciMethod*        _known_to_link_with_put;
   ciInstanceKlass* _known_to_link_with_get;
   ciConstant       _constant_value;
@@ -179,6 +180,7 @@ public:
   bool is_flat                 () const { return _is_flat; }
   bool is_null_checked         () const { return _is_null_checked; }
   int null_marker_offset       () const { return _null_marker_offset; }
+  BasicType null_marker_type   () const { return _null_marker_type; }
   LayoutKind layout_kind       () const { return _layout_kind; }
 
   // Whether this field needs to act atomically. Note that it does not actually need accessing

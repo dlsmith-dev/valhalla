@@ -2435,7 +2435,7 @@ void Compile::adjust_flat_array_access_aliases(PhaseIterGVN& igvn) {
             igvn.register_new_node_with_optimizer(new_proj);
             mm->set_memory_at(field_alias_idx, new_proj);
           }
-          if (!klass->is_elem_null_free()) {
+          if (!klass->is_elem_null_free() && elem_klass->null_marker_type() == T_NULLMARKER) {
             int nm_offset = elem_klass->null_marker_offset_in_payload();
             const TypeAryPtr* nm_ptr = oop_type->with_offset(Type::OffsetBot)->with_field_offset(nm_offset);
             int nm_alias_idx = get_alias_index(nm_ptr);

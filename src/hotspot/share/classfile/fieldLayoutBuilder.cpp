@@ -91,9 +91,8 @@ static LayoutKind field_layout_selection(FieldInfo field_info, Array<ValueFieldL
         return LayoutKind::NULLABLE_NON_ATOMIC_FLAT;
       }
     }
-    // Another special case where NULLABLE_NON_ATOMIC_FLAT can be used: nullable empty values, because the
-    // payload of those values contains only the null-marker
-    if (vk->is_empty_value_type() && vk->has_nullable_non_atomic_layout()) {
+    // Another special case where NULLABLE_NON_ATOMIC_FLAT can be used: naturally-atomic nullable types
+    if (vk->is_naturally_atomic(false) && vk->has_nullable_non_atomic_layout()) {
       return LayoutKind::NULLABLE_NON_ATOMIC_FLAT;
     }
     if (UseNullableAtomicValueFlattening && vk->has_nullable_atomic_layout()) {

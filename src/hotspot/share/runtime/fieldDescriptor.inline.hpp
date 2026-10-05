@@ -74,5 +74,6 @@ inline BasicType fieldDescriptor::field_type() const {
 inline bool fieldDescriptor::is_flat()  const  { return field().field_flags().is_flat(); }
 inline bool fieldDescriptor::is_null_checked() const { return field().field_flags().is_null_checked(); }
 inline bool fieldDescriptor::has_null_marker() const { return field().field_flags().has_null_marker(); }
+inline BasicType fieldDescriptor::null_marker_type() const { return field().null_marker_type(); }
 
 #endif // SHARE_RUNTIME_FIELDDESCRIPTOR_INLINE_HPP
