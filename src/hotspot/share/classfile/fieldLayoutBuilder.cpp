@@ -1438,9 +1438,8 @@ void FieldLayoutBuilder::generate_acmp_maps() {
           ValueKlass* vk = b->value_klass();
           int field_offset = b->offset() - vk->payload_offset();
           last_idx = insert_map_at_offset(_nonoop_acmp_map, _oop_acmp_map, vk, field_offset, last_idx);
-          if (LayoutKindHelper::is_nullable_flat(b->layout_kind())) {
+          if (LayoutKindHelper::is_nullable_flat(b->layout_kind()) && vk->null_marker_type() == T_NULLMARKER) {
             int null_marker_offset = b->offset() + vk->null_marker_offset_in_payload();
-            // TODO: is this harmless if the offset is already included?
             last_idx = insert_segment(_nonoop_acmp_map, null_marker_offset, 1, last_idx);
             // Important note: the implementation assumes that for nullable flat fields, if the
             // null marker is zero (field is null), then all the fields of the flat field are also
