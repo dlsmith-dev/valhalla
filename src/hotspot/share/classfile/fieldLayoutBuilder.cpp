@@ -1184,9 +1184,10 @@ void FieldLayoutBuilder::compute_value_class_layout() {
       }
       if (null_marker_offset == -1) {
         // Inject a null marker at the end of the layout
+        int last_offset = _layout->last_block()->offset();
         LayoutRawBlock* marker = new LayoutRawBlock(LayoutRawBlock::NULL_MARKER, 1);
         _layout->insert_field_block(_layout->last_block(), marker);
-        assert(marker->offset() == _layout->last_block()->offset(), "Null marker should have been inserted at the end");
+        assert(marker->offset() == last_offset, "Null marker should have been inserted at the end");
         null_marker_offset = marker->offset();
         null_marker_type = T_NULLMARKER;
       }
