@@ -136,7 +136,7 @@ public:
     assert(is_volatile() == is_volatile_flag, "Must be");
     assert(is_final() == is_final_flag, "Must be");
     assert(is_flat() == is_flat_flag, "Must be");
-    assert(is_null_checked() == is_null_checked, "Must be");
+    assert(is_null_checked() == is_null_checked_flag, "Must be");
     assert(has_null_marker() == has_null_marker_flag, "Must be");
   }
 
