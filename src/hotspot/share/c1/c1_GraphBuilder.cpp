@@ -1809,7 +1809,7 @@ void GraphBuilder::copy_value_content(ciValueKlass* vk, Value src, int src_off, 
     int offset = field->offset_in_bytes() - vk->payload_offset();
     if (field->is_flat()) {
       copy_value_content(field->type()->as_value_klass(), src, src_off + offset, dest, dest_off + offset, state_before, enclosing_field);
-      if (!field->is_null_checked()) {
+      if (!field->is_null_checked() && field->null_marker_type() == T_NULLMARKER) {
         // Nullable, copy the null marker using Unsafe because null markers are not real fields
         int null_marker_offset = field->null_marker_offset() - vk->payload_offset();
         Value offset = append(new Constant(new LongConstant(src_off + null_marker_offset)));
@@ -2076,11 +2076,20 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
 
                 Instruction* result = buffer;
                 if (!field->is_null_checked()) {
-                  Value int_zero = append(new Constant(intZero));
                   Value object_null = append(new Constant(objectNull));
-                  Value nm_offset = append(new Constant(new LongConstant(offset + value_klass->null_marker_offset_in_payload())));
-                  Value nm = append(new UnsafeGet(T_BOOLEAN, obj, nm_offset, false));
-                  result = append(new IfOp(nm, Instruction::neq, int_zero, buffer, object_null, state_before, false));
+                  Value nm_value, nm_expected;
+                  if (field->null_marker_type() == T_NULLMARKER) {
+                    Value nm_offset = append(new Constant(new LongConstant(offset + value_klass->null_marker_offset_in_payload())));
+                    nm_value = append(new UnsafeGet(T_BOOLEAN, obj, nm_offset, false));
+                    nm_expected = append(new Constant(intZero));
+                  } else {
+                    assert(is_reference_type(field->null_marker_type()), "unexpected null marker type");
+                    ciField* nm_field = value_klass->get_field_by_offset(value_klass->null_marker_offset(), false /*is_static*/);
+                    assert(nm_field != nullptr, "invalid null marker offset");
+                    nm_value = append(new LoadField(buffer, nm_field->offset_in_bytes(), nm_field, false, state_before, false));
+                    nm_expected = object_null;
+                  }
+                  result = append(new IfOp(nm_value, Instruction::neq, nm_expected, buffer, object_null, state_before, false));
                 }
                 apush(result);
               }
@@ -2149,12 +2158,14 @@ void GraphBuilder::access_field(Bytecodes::Code code) {
           Value src = append(new IfOp(val, Instruction::neq, object_null, val, null_reset_value, state_before, false));
           copy_value_content(value_klass, src, value_klass->payload_offset(), obj, offset, state_before);
 
-          // Store the null marker
-          Value int_one = append(new Constant(new IntConstant(1)));
-          Value int_zero = append(new Constant(intZero));
-          Value nm = append(new IfOp(val, Instruction::neq, object_null, int_one, int_zero, state_before, false));
-          Value nm_offset = append(new Constant(new LongConstant(offset + value_klass->null_marker_offset_in_payload())));
-          append(new UnsafePut(T_BOOLEAN, obj, nm_offset, nm, false));
+          if (field->null_marker_type() == T_NULLMARKER) {
+            // Store the null marker
+            Value int_one = append(new Constant(new IntConstant(1)));
+            Value int_zero = append(new Constant(intZero));
+            Value nm = append(new IfOp(val, Instruction::neq, object_null, int_one, int_zero, state_before, false));
+            Value nm_offset = append(new Constant(new LongConstant(offset + value_klass->null_marker_offset_in_payload())));
+            append(new UnsafePut(T_BOOLEAN, obj, nm_offset, nm, false));
+          }
         }
       }
       break;
