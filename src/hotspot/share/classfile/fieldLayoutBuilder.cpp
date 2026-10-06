@@ -1165,7 +1165,23 @@ void FieldLayoutBuilder::compute_value_class_layout() {
               break;
             }
           }
-          // TODO: look inside FLAT blocks
+        }
+      }
+      if (null_marker_offset == -1) {
+        // Find a null_checked flat field that can host a null marker
+        for (LayoutRawBlock* b = _layout->first_field_block();
+             b != nullptr && b != _layout->last_block(); b = b->next_block()) {
+          if (b->block_kind() == LayoutRawBlock::FLAT) {
+            FieldInfo* f = _field_info->adr_at(b->field_index());
+            if (f->field_flags().is_null_checked()) {
+              ValueKlass* vk = b->value_klass();
+              if (is_reference_type(vk->null_marker_type())) {
+                null_marker_offset = b->offset() + vk->null_marker_offset_in_payload();
+                null_marker_type = vk->null_marker_type();
+                break;
+              }
+            }
+          }
         }
       }
       if (null_marker_offset == -1) {
