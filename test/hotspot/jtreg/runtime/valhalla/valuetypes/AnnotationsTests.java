@@ -266,12 +266,12 @@ import jdk.test.whitebox.WhiteBox;
         Asserts.assertNotNull(exception, "Expected ClassFormatError not received");
     }
 
-    // Test illegal use of @NullRestricted on an array field
-    static class BadClass13 {
+    // Test use of @NullRestricted on an array field
+    static class IdentityClass13 {
         @NullRestricted
         int[] intArray;
 
-        BadClass13() {
+        IdentityClass13() {
             intArray = new int[1];
             super();
         }
@@ -279,14 +279,13 @@ import jdk.test.whitebox.WhiteBox;
     void test_13() {
         Throwable exception = null;
         try {
-            BadClass13 val = new BadClass13();
-            System.out.println(val);
-        } catch(ClassFormatError e) {
+            IdentityClass13 obj = new IdentityClass13();
+            obj.intArray = null;
+        } catch(NullPointerException e) {
             exception = e;
             System.out.println("Received " + e);
         }
-        Asserts.assertNotNull(exception, "Expected ClassFormatError not received");
+        Asserts.assertNotNull(exception, "Expected NullPointerException not received");
     }
 
  }
-
