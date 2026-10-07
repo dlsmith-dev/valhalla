@@ -1192,7 +1192,7 @@ void FieldLayoutBuilder::compute_value_class_layout() {
             // found an empty slot, register its offset from the beginning of the payload
             LayoutRawBlock* marker = new LayoutRawBlock(LayoutRawBlock::NULL_MARKER, 1);
             _layout->add_field_at_offset(marker, b->offset());
-            null_marker_offset = b->offset();
+            null_marker_offset = marker->offset();
             null_marker_type = T_NULLMARKER;
             break;
           }
