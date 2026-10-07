@@ -99,6 +99,7 @@ class fieldDescriptor {
   inline bool is_flat()           const;
   inline bool is_null_checked()   const;
   inline bool has_null_marker()   const;
+  inline BasicType null_marker_type() const;
 
   bool is_synthetic()             const    { return access_flags().is_synthetic(); }
 

@@ -1556,20 +1556,51 @@ void LIRGenerator::do_CompareAndSwap(Intrinsic* x, ValueType* type) {
 }
 
 // Returns an int/long value with the null marker bit set.
-static LIR_Opr null_marker_mask(BasicType bt, int nm_offset) {
-  assert(nm_offset >= 0, "field does not have null marker");
+static LIR_Opr bit_null_marker_mask(BasicType payload_bt, int nm_offset) {
+  int payload_size = type2aelembytes(payload_bt);
+  assert(nm_offset >= 0 && nm_offset < payload_size, "invalid offset");
 #ifdef VM_LITTLE_ENDIAN
   int bit_pos = nm_offset << LogBitsPerByte;
 #else
-  int bit_pos = (type2aelembytes(bt) - nm_offset - 1) << LogBitsPerByte;
+  int bit_pos = (payload_size - nm_offset - 1) << LogBitsPerByte;
 #endif
-  jlong null_marker = 1ULL << bit_pos;
-  return (bt == T_LONG) ? LIR_OprFact::longConst(null_marker) : LIR_OprFact::intConst(null_marker);
+  uint64_t mask = 1ULL << bit_pos;
+  return (payload_bt == T_LONG) ? LIR_OprFact::longConst(mask) : LIR_OprFact::intConst(mask);
+}
+
+// Returns an int/long value with the null marker oop bits set.
+// (Incompatible with ZGC colored null pointers, which C1 does not support.)
+static LIR_Opr oop_null_marker_mask(BasicType payload_bt, int nm_offset) {
+  int mask_size = type2aelembytes(T_OBJECT);
+  int payload_size = type2aelembytes(payload_bt);
+  assert(nm_offset >= 0 && nm_offset+mask_size <= payload_size, "invalid offset");
+#ifdef VM_LITTLE_ENDIAN
+  int bit_pos = nm_offset << LogBitsPerByte;
+#else
+  int bit_pos = (payload_size - nm_offset - mask_size) << LogBitsPerByte;
+#endif
+  uint64_t mask = (UINT64_MAX >> (BitsPerLong - mask_size * BitsPerByte)) << bit_pos;
+  return (payload_bt == T_LONG) ? LIR_OprFact::longConst(mask) : LIR_OprFact::intConst(mask);
 }
 
 static LIR_Opr null_marker_mask(BasicType bt, ciField* field) {
   assert(field->null_marker_offset() != -1, "field does not have null marker");
-  return null_marker_mask(bt, field->null_marker_offset() - field->offset_in_bytes());
+  if (field->null_marker_type() == T_NULLMARKER) {
+    return bit_null_marker_mask(bt, field->null_marker_offset() - field->offset_in_bytes());
+  } else {
+    assert(is_reference_type(field->null_marker_type()), "unexpected null marker type");
+    return oop_null_marker_mask(bt, field->null_marker_offset() - field->offset_in_bytes());
+  }
+}
+
+static LIR_Opr null_marker_mask(BasicType bt, ciValueKlass* vk) {
+  assert(vk->null_marker_offset() != -1, "field does not have null marker");
+  if (vk->null_marker_type() == T_NULLMARKER) {
+    return bit_null_marker_mask(bt, vk->null_marker_offset_in_payload());
+  } else {
+    assert(is_reference_type(vk->null_marker_type()), "unexpected null marker type");
+    return oop_null_marker_mask(bt, vk->null_marker_offset_in_payload());
+  }
 }
 
 // Comment copied form templateTable_i486.cpp
@@ -1695,7 +1726,7 @@ void LIRGenerator::do_StoreField(StoreField* x) {
       if (!vk->is_empty()) {
         access_load_at(decorators, bt, value, LIR_OprFact::intConst(vk->payload_offset()), payload);
       }
-      if (!field->is_null_checked()) {
+      if (!field->is_null_checked() && field->null_marker_type() == T_NULLMARKER) {
         __ logical_or(payload, null_marker_mask(bt, field), payload);
       }
       if (needs_null_check) {
@@ -1821,7 +1852,9 @@ LIR_Opr LIRGenerator::access_flat_array(bool is_load, LIRItem& array, LIRItem& i
           if (!elem_klass->is_empty()) {
             access_load_at(decorators, bt, obj_item, LIR_OprFact::intConst(elem_klass->payload_offset()), payload);
           }
-          __ logical_or(payload, null_marker_mask(bt, elem_klass->null_marker_offset_in_payload()), payload);
+          if (elem_klass->null_marker_type() == T_NULLMARKER) {
+            __ logical_or(payload, null_marker_mask(bt, elem_klass), payload);
+          }
           if (needs_null_check) {
             __ branch_destination(L_isNull->label());
           }
@@ -2405,7 +2438,7 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
     LIRItem elm_item(elm_resolved_addr, this);
     LIR_Opr payload = new_register((bt == T_LONG) ? bt : T_INT);
     access_load_at(IN_HEAP, bt, elm_item, LIR_OprFact::intConst(0), payload, nullptr, nullptr);
-    __ logical_and(payload, null_marker_mask(bt, elem_klass->null_marker_offset_in_payload()), payload);
+    __ logical_and(payload, null_marker_mask(bt, elem_klass), payload);
     __ cmp(lir_cond_notEqual, payload, (bt == T_LONG) ? LIR_OprFact::longConst(0) : LIR_OprFact::intConst(0));
     __ branch(lir_cond_notEqual, new DeoptimizeStub(null_assert_info, Deoptimization::Reason_null_assert,
                                                     Deoptimization::Action_make_not_entrant));
@@ -2429,7 +2462,7 @@ void LIRGenerator::do_LoadIndexed(LoadIndexed* x) {
       ciValueKlass* elem_klass = array_klass->element_klass()->as_value_klass();
       BasicType bt = elem_klass->atomic_size_to_basic_type(false);
       assert(payload->is_valid(), "nullable flat array load must return the atomic payload");
-      __ logical_and(payload, null_marker_mask(bt, elem_klass->null_marker_offset_in_payload()), payload);
+      __ logical_and(payload, null_marker_mask(bt, elem_klass), payload);
       __ cmp(lir_cond_equal, payload, (bt == T_LONG) ? LIR_OprFact::longConst(0) : LIR_OprFact::intConst(0));
       __ cmove(lir_cond_equal, LIR_OprFact::oopConst(nullptr), buffer.result(), rlock_result(x), T_OBJECT);
     }

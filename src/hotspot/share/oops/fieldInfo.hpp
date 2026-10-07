@@ -146,6 +146,7 @@ class FieldInfo {
   FieldFlags _field_flags;      // VM defined flags (not JVM spec)
   LayoutKind _layout_kind;      // LayoutKind if the field is flat
   u4 _null_marker_offset;       // null marker offset for this field in the object layout
+  BasicType _null_marker_type;  // null marker type for this field
   u2 _initializer_index;        // index from ConstantValue attr (or 0)
   u2 _generic_signature_index;  // index from GenericSignature attr (or 0)
   u2 _contention_group;         // index from @Contended group item (or 0)
@@ -160,6 +161,7 @@ class FieldInfo {
                 _field_flags(FieldFlags(0)),
                 _layout_kind(LayoutKind::UNKNOWN),
                 _null_marker_offset(0),
+                _null_marker_type(T_ILLEGAL),
                 _initializer_index(0),
                 _generic_signature_index(0),
                 _contention_group(0) { }
@@ -173,6 +175,7 @@ class FieldInfo {
             _field_flags(fflags),
             _layout_kind(LayoutKind::UNKNOWN),
             _null_marker_offset(0),
+            _null_marker_type(T_ILLEGAL),
             _initializer_index(initval_index),
             _generic_signature_index(0),
             _contention_group(0) {
@@ -198,9 +201,11 @@ class FieldInfo {
     _layout_kind = lk;
   }
   u4 null_marker_offset() const              { return _null_marker_offset; }
-  void set_null_marker_offset(u4 offset) {
+  BasicType null_marker_type() const         { return _null_marker_type; }
+  void set_null_marker_offset(u4 offset, BasicType type) {
     _field_flags.update_null_marker(true);
     _null_marker_offset = offset;
+    _null_marker_type = type;
   }
   u2 initializer_index() const               { return _initializer_index; }
   void set_initializer_index(u2 index)       { _initializer_index = index; }

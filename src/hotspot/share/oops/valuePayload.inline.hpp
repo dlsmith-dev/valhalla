@@ -215,11 +215,6 @@ inline void ValuePayload::mark_as_non_null() {
   klass()->mark_payload_as_non_null(addr());
 }
 
-inline void ValuePayload::mark_as_null() {
-  precond(has_null_marker());
-  klass()->mark_payload_as_null(addr());
-}
-
 inline bool ValuePayload::uses_absolute_addr() const {
   return _storage.uses_absolute_addr();
 }

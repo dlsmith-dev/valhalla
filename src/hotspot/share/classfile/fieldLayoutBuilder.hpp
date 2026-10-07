@@ -240,9 +240,8 @@ class FieldLayout : public ResourceObj {
   LayoutRawBlock* insert(LayoutRawBlock* slot, LayoutRawBlock* block);
   void remove(LayoutRawBlock* block);
   void shift_fields(int shift);
-  LayoutRawBlock* find_null_marker();
   void remove_null_marker();
-  void print(outputStream* output, bool is_static, const InstanceKlass* super, Array<ValueFieldLayoutInfo>* value_fields, bool dummy_field_is_reused_as_null_marker);
+  void print(outputStream* output, bool is_static, const InstanceKlass* super, Array<ValueFieldLayoutInfo>* value_fields);
 };
 
 
@@ -290,6 +289,7 @@ class FieldLayoutBuilder : public ResourceObj {
   int _payload_alignment;
   int _payload_offset;
   int _null_marker_offset; // if any, -1 means no internal null marker
+  BasicType _null_marker_type;
   int _payload_size_in_bytes;
   int _null_free_non_atomic_layout_size_in_bytes;
   int _null_free_non_atomic_layout_alignment;
@@ -331,6 +331,7 @@ class FieldLayoutBuilder : public ResourceObj {
   bool has_nullable_non_atomic_layout() const  { return _nullable_non_atomic_layout_size_in_bytes != -1; }
   int  nullable_non_atomic_layout_size_in_bytes() const { return _nullable_non_atomic_layout_size_in_bytes; }
   int  null_marker_offset() const              { return _null_marker_offset; }
+  BasicType null_marker_type() const           { return _null_marker_type; }
   bool is_empty_value_class() const            { return _is_empty_value_class; }
 
   void build_layout();

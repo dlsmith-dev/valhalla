@@ -114,8 +114,16 @@ bool ciValueKlass::has_nullable_atomic_layout() const {
   GUARDED_VM_ENTRY(return get_ValueKlass()->has_nullable_atomic_layout();)
 }
 
+int ciValueKlass::null_marker_offset() const {
+  GUARDED_VM_ENTRY(return get_ValueKlass()->null_marker_offset();)
+}
+
 int ciValueKlass::null_marker_offset_in_payload() const {
   GUARDED_VM_ENTRY(return get_ValueKlass()->null_marker_offset_in_payload();)
+}
+
+BasicType ciValueKlass::null_marker_type() const {
+  GUARDED_VM_ENTRY(return get_ValueKlass()->null_marker_type();)
 }
 
 // Convert size of atomic layout in bytes to corresponding BasicType
@@ -141,7 +149,8 @@ BasicType ciValueKlass::atomic_size_to_basic_type(bool null_free) const {
 }
 
 bool ciValueKlass::is_naturally_atomic(bool null_free) {
-  return null_free ? (nof_nonstatic_fields() <= 1) : (nof_nonstatic_fields() == 0);
+  return (null_free || null_marker_type() != T_NULLMARKER) ?
+         (nof_nonstatic_fields() <= 1) : (nof_nonstatic_fields() == 0);
 }
 
 int ciValueKlass::field_map_offset() const {

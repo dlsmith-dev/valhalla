@@ -525,7 +525,6 @@ class SerializeClosure;
   template(init_lock_name,                            "<init_lock>")                              \
   template(null_reset_value_name,                     ".null_reset")                              \
   template(acmp_maps_name,                            ".acmp_maps")                               \
-  template(empty_marker_name,                         ".empty")                                   \
   template(address_size_name,                         "ADDRESS_SIZE0")                            \
   template(page_size_name,                            "PAGE_SIZE")                                \
   template(big_endian_name,                           "BIG_ENDIAN")                               \

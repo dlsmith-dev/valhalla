@@ -548,7 +548,7 @@ Node* PhaseMacroExpand::value_from_alloc(BasicType ft, const TypeOopPtr* adr_t, 
   }
 
   ciValueKlass* vk = init_value->bottom_type()->value_klass();
-  if (ary_t->field_offset().get() == vk->null_marker_offset_in_payload()) {
+  if (ary_t->field_offset().get() == vk->null_marker_offset_in_payload() && vk->null_marker_type() == T_NULLMARKER) {
     init_value = init_value->as_ValueType()->get_null_marker();
   } else {
     init_value = init_value->as_ValueType()->field_value_by_offset(ary_t->field_offset().get() + vk->payload_offset(), true);
@@ -712,7 +712,24 @@ Node* PhaseMacroExpand::value_type_from_mem(ciValueKlass* vk, const TypeAryPtr* 
   } else {
     int nm_offset_in_element = offset_in_element + vk->null_marker_offset_in_payload();
     const TypeAryPtr* nm_adr_type = elem_adr_type->with_field_offset(nm_offset_in_element);
-    Node* nm_value = value_from_mem(sfpt, sfpt->control(), T_BOOLEAN, TypeInt::BOOL, nm_adr_type, alloc);
+    Node* nm_value = nullptr;
+    if (vk->null_marker_type() == T_NULLMARKER) {
+      nm_value = value_from_mem(sfpt, sfpt->control(), T_BOOLEAN, TypeInt::BOOL, nm_adr_type, alloc);
+    } else {
+      assert(is_reference_type(vk->null_marker_type()), "unexpected null marker type");
+      Node* oop = nullptr;
+      if (UseCompressedOops) {
+        Node* noop = value_from_mem(sfpt, sfpt->control(), T_NARROWOOP, TypeNarrowOop::BOTTOM, nm_adr_type, alloc);
+        if (noop != nullptr) {
+          oop = transform_later(new DecodeNNode(noop, TypeInstPtr::BOTTOM));
+        }
+      } else {
+        oop = value_from_mem(sfpt, sfpt->control(), T_OBJECT, TypeInstPtr::BOTTOM, nm_adr_type, alloc);
+      }
+      if (oop != nullptr) {
+        nm_value = transform_later(new Conv2BNode(oop));
+      }
+    }
     bool force_scalarization_failure = StressEliminateAllocations &&
                                        (C->stress().random() % StressEliminateAllocationsMean == 0);
     if (nm_value != nullptr && !force_scalarization_failure) {
@@ -1147,14 +1164,32 @@ bool PhaseMacroExpand::add_inst_fields_to_safepoint(ciInstanceKlass* iklass, All
       // The null marker of a field is added right after we scalarize that field
       if (!field->is_null_checked()) {
         int nm_offset = offset_minus_header + field->null_marker_offset();
-        Node* null_marker = value_from_mem(sfpt, sfpt->control(), T_BOOLEAN, TypeInt::BOOL, base_type->with_offset(nm_offset), alloc);
+        const TypeInstPtr* nm_ptr = base_type->with_offset(nm_offset);
+        Node* nm_value = nullptr;
+        if (field->null_marker_type() == T_NULLMARKER) {
+          nm_value = value_from_mem(sfpt, sfpt->control(), T_BOOLEAN, TypeInt::BOOL, nm_ptr, alloc);
+        } else {
+          assert(is_reference_type(field->null_marker_type()), "unexpected null marker type");
+          Node* oop = nullptr;
+          if (UseCompressedOops) {
+            Node* noop = value_from_mem(sfpt, sfpt->control(), T_NARROWOOP, TypeNarrowOop::BOTTOM, nm_ptr, alloc);
+            if (noop != nullptr) {
+              oop = transform_later(new DecodeNNode(noop, TypeInstPtr::BOTTOM));
+            }
+          } else {
+            oop = value_from_mem(sfpt, sfpt->control(), T_OBJECT, TypeInstPtr::BOTTOM, nm_ptr, alloc);
+          }
+          if (oop != nullptr) {
+            nm_value = transform_later(new Conv2BNode(oop));
+          }
+        }
         bool force_scalarization_failure = StressEliminateAllocations &&
                                            (C->stress().random() % StressEliminateAllocationsMean == 0);
-        if (null_marker == nullptr || force_scalarization_failure) {
-          report_failure(nm_offset, null_marker != nullptr);
+        if (nm_value == nullptr || force_scalarization_failure) {
+          report_failure(nm_offset, nm_value != nullptr);
           return false;
         }
-        process_field_value_at_safepoint(TypeInt::BOOL, null_marker, sfpt, value_worklist);
+        process_field_value_at_safepoint(TypeInt::BOOL, nm_value, sfpt, value_worklist);
       }
 
       continue;

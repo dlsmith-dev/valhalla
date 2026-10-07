@@ -82,21 +82,6 @@ inline bool flatArrayOopDesc::obj_at_is_null(int index) const {
   return payload.is_payload_null();
 }
 
-inline jboolean flatArrayOopDesc::null_marker_of_obj_at(int index) const {
-  EXCEPTION_MARK;
-  return null_marker_of_obj_at(index, THREAD);
-}
-
-inline jboolean flatArrayOopDesc::null_marker_of_obj_at(int index, TRAPS) const {
-  assert(is_within_bounds(index), "index %d out of bounds %d", index, length());
-  FlatArrayKlass* fak = klass();
-  ValueKlass* vk = fak->element_klass();
-  char* this_oop = (char*) (oopDesc*) this;
-  char* val = (char*) value_at_addr(index, fak->layout_helper());
-  ptrdiff_t offset = val - this_oop + (ptrdiff_t)vk->null_marker_offset_in_payload();
-  return bool_field(offset);
-}
-
 inline void flatArrayOopDesc::obj_at_put(int index, oop value) {
   EXCEPTION_MARK;                                 // What if the caller is not a Java Thread?
   obj_at_put(index, value, THREAD);

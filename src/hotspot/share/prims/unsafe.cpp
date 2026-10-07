@@ -309,6 +309,13 @@ UNSAFE_ENTRY(jint, Unsafe_NullMarkerOffset(JNIEnv *env, jobject unsafe, jobject 
   return InstanceKlass::cast(k)->field_null_marker_offset(slot);
 } UNSAFE_END
 
+UNSAFE_ENTRY(jint, Unsafe_NullMarkerType(JNIEnv *env, jobject unsafe, jobject o)) {
+  oop f = JNIHandles::resolve_non_null(o);
+  Klass* k = java_lang_Class::as_Klass(java_lang_reflect_Field::clazz(f));
+  int slot = java_lang_reflect_Field::slot(f);
+  return InstanceKlass::cast(k)->field_null_marker_type(slot);
+} UNSAFE_END
+
 UNSAFE_ENTRY(jint, Unsafe_ArrayLayout(JNIEnv *env, jobject unsafe, jarray array)) {
   oop ar = JNIHandles::resolve_non_null(array);
   ArrayKlass* ak = ArrayKlass::cast(ar->klass());
@@ -1103,6 +1110,7 @@ static JNINativeMethod jdk_internal_misc_Unsafe_methods[] = {
     {CC "isFlatField0",         CC "(" OBJ ")Z",          FN_PTR(Unsafe_IsFlatField)},
     {CC "hasNullMarker0",       CC "(" OBJ ")Z",          FN_PTR(Unsafe_HasNullMarker)},
     {CC "nullMarkerOffset0",    CC "(" OBJ ")I",          FN_PTR(Unsafe_NullMarkerOffset)},
+    {CC "nullMarkerType0",      CC "(" OBJ ")I",          FN_PTR(Unsafe_NullMarkerType)},
     {CC "arrayLayout0",         CC "(" OBJ_ARR ")I",      FN_PTR(Unsafe_ArrayLayout)},
     {CC "fieldLayout0",         CC "(" OBJ ")I",          FN_PTR(Unsafe_FieldLayout)},
     {CC "newSpecialArray",      CC "(" CLS "II)[" OBJ,    FN_PTR(Unsafe_NewSpecialArray)},

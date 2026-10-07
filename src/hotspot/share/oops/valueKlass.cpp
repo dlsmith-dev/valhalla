@@ -73,6 +73,7 @@ ValueKlass::Members::Members()
     _nullable_atomic_size_in_bytes(-1),
     _nullable_non_atomic_size_in_bytes(-1),
     _null_marker_offset(-1),
+    _null_marker_type(T_ILLEGAL),
     _fast_acmp_offset(-1),
     _fast_acmp_mask(0),
     _fast_hashcode_offset(-1),
@@ -102,6 +103,21 @@ ValueKlass::ValueKlass(const ClassFileParser& parser)
 address ValueKlass::calculate_members_address() const {
   // The members are placed after all other contents inherited from the InstanceKlass
   return end_of_instance_klass();
+}
+
+bool ValueKlass::is_payload_marked_as_null(address payload) const {
+  assert(supports_nullable_layouts(), " Must do");
+  jbyte* nm_addr = null_marker_address(payload);
+  if (null_marker_type() == T_NULLMARKER) {
+    return *nm_addr == 0;
+  } else {
+    assert(is_reference_type(null_marker_type()), "unexpected null marker type");
+    if (UseCompressedOops) {
+      return HeapAccess<>::oop_load(reinterpret_cast<narrowOop*>(nm_addr)) == nullptr;
+    } else {
+      return HeapAccess<>::oop_load(reinterpret_cast<oop*>(nm_addr)) == nullptr;
+    }
+  }
 }
 
 oop ValueKlass::null_reset_value() const {
@@ -199,7 +215,7 @@ int ValueKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off, int n
     }
   }
   int offset = base_off + size_helper()*HeapWordSize - (base_off > 0 ? payload_offset() : 0);
-  // Null markers are no real fields, add them manually at the end (C2 relies on this) of the flat fields
+  // Null markers are not real fields, add them manually at the end (C2 relies on this) of the flat fields
   if (null_marker_offset != -1) {
     SigEntry::add_null_marker(sig, name(), null_marker_offset);
     count++;
@@ -574,6 +590,7 @@ void ValueKlass::Members::print_on(outputStream* st) const {
   st->print_cr(" - nullable atomic size (bytes):      %d", _nullable_atomic_size_in_bytes);
   st->print_cr(" - nullable non-atomic size (bytes):  %d", _nullable_non_atomic_size_in_bytes);
   st->print_cr(" - null marker offset:                %d", _null_marker_offset);
+  st->print_cr(" - null marker type:                  %d", _null_marker_type);
   st->print_cr(" - fast acmp offset:                  %d", _fast_acmp_offset);
   st->print_cr(" - fast acmp mask:                    " INT64_FORMAT_X_0, _fast_acmp_mask);
   st->print_cr(" - fast hashcode offset:              %d", _fast_hashcode_offset);

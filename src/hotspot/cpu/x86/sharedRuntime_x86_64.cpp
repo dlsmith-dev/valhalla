@@ -3778,7 +3778,7 @@ BufferedValueTypeBlob* SharedRuntime::generate_buffered_value_type_adapter(const
     j++;
   }
   assert(j == regs->length(), "missed a field?");
-  if (vk->supports_nullable_layouts()) {
+  if (vk->supports_nullable_layouts() && vk->null_marker_type() == T_NULLMARKER) {
     // Set the null marker
     __ movb(Address(rax, vk->null_marker_offset()), 1);
   }

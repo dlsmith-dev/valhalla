@@ -596,7 +596,7 @@ void ciInstanceKlass::compute_nonstatic_fields_impl(const GrowableArray<ciField*
       ValueKlass* k = fd.flat_field_klass();
       ciValueKlass* vk = CURRENT_ENV->get_klass(k)->as_value_klass();
       field_num += vk->nof_nonstatic_fields();
-      field_num += fd.has_null_marker() ? 1 : 0;
+      field_num += fd.has_null_marker() && (fd.null_marker_type() == T_NULLMARKER) ? 1 : 0;
     } else {
       field_num++;
     }
@@ -637,7 +637,7 @@ void ciInstanceKlass::compute_nonstatic_fields_impl(const GrowableArray<ciField*
         assert(tmp_fields != nullptr, "should be initialized");
         tmp_fields->append(new (arena) ciField(declared_field, vk->nonstatic_field_at(i)));
       }
-      if (fd.has_null_marker()) {
+      if (fd.has_null_marker() && fd.null_marker_type() == T_NULLMARKER) {
         assert(tmp_fields != nullptr, "should be initialized");
         tmp_fields->append(new (arena) ciField(declared_field));
       }

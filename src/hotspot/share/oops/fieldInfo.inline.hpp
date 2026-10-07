@@ -104,6 +104,7 @@ inline void Mapper<CON>::map_field_info(const FieldInfo& fi) {
     }
     if (fi.field_flags().has_null_marker()) {
       _consumer->accept_uint(fi.null_marker_offset());
+      _consumer->accept_uint((uint32_t)fi.null_marker_type());
     }
   } else {
     assert(fi.initializer_index() == 0, "");
@@ -154,8 +155,10 @@ inline void FieldInfoReader::read_field_info(FieldInfo& fi) {
   }
   if (fi._field_flags.has_null_marker()) {
     fi._null_marker_offset = next_uint();
+    fi._null_marker_type = (BasicType) next_uint();
   } else {
     fi._null_marker_offset = 0;
+    fi._null_marker_type = T_ILLEGAL;
   }
 }
 

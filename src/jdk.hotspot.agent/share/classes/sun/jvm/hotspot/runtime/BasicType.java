@@ -42,6 +42,8 @@ public class BasicType {
   public static final BasicType T_OBJECT = new BasicType();
   public static final BasicType T_ARRAY = new BasicType();
   public static final BasicType T_VOID = new BasicType();
+  // TODO: missing T_FLAT_ELEMENT, is that okay?
+  public static final BasicType T_NULLMARKER = new BasicType();
   public static final BasicType T_ADDRESS = new BasicType();
   public static final BasicType T_NARROWOOP = new BasicType();
   public static final BasicType T_METADATA = new BasicType();
@@ -66,6 +68,7 @@ public class BasicType {
     T_OBJECT.setType(db.lookupIntConstant("T_OBJECT").intValue());
     T_ARRAY.setType(db.lookupIntConstant("T_ARRAY").intValue());
     T_VOID.setType(db.lookupIntConstant("T_VOID").intValue());
+    T_NULLMARKER.setType(db.lookupIntConstant("T_NULLMARKER").intValue());
     T_ADDRESS.setType(db.lookupIntConstant("T_ADDRESS").intValue());
     T_NARROWOOP.setType(db.lookupIntConstant("T_NARROWOOP").intValue());
     T_METADATA.setType(db.lookupIntConstant("T_METADATA").intValue());
@@ -118,6 +121,10 @@ public class BasicType {
     return T_VOID.getType();
   }
 
+  public static int getTNullMarker() {
+    return T_NULLMARKER.getType();
+  }
+
   public static int getTAddress() {
     return T_ADDRESS.getType();
   }
@@ -166,6 +173,8 @@ public class BasicType {
       return T_ARRAY;
     } else if (i == T_VOID.getType()) {
       return T_VOID;
+    } else if (i == T_NULLMARKER.getType()) {
+      return T_NULLMARKER;
     } else if (i == T_ADDRESS.getType()) {
       return T_ADDRESS;
     } else if (i == T_NARROWOOP.getType()) {
@@ -227,6 +236,8 @@ public class BasicType {
       return "array";
     } else if (type == T_VOID.getType()) {
       return "void";
+    } else if (type == T_NULLMARKER.getType()) {
+      return "null marker";
     } else if (type == T_ADDRESS.getType()) {
       return "address";
     } else if (type == T_NARROWOOP.getType()) {

@@ -269,6 +269,19 @@ public final class Unsafe {
 
     private native int nullMarkerOffset0(Object o);
 
+    /* Returns the BasicType of the null marker of the field,
+    * or T_ILLEGAL if the field doesn't have a null marker
+    */
+
+    public int nullMarkerType(Field f) {
+        if (f == null) {
+            throw new NullPointerException();
+        }
+        return nullMarkerType0(f);
+    }
+
+    private native int nullMarkerType0(Object o);
+
     /**
      * The layout value for a "reference pointer" layout. This is the only
      * value layout values should check against; all other layout values

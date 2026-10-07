@@ -138,6 +138,10 @@ class FieldStreamBase : public StackObj {
     return field()->null_marker_offset();
   }
 
+  BasicType null_marker_type() const {
+    return field()->null_marker_type();
+  }
+
   // Convenient methods
 
   const FieldInfo& to_FieldInfo() const {
@@ -277,6 +281,10 @@ public:
 
   int null_marker_offset() {
     return current_stream().null_marker_offset();
+  }
+
+  BasicType null_marker_type() {
+    return current_stream().null_marker_type();
   }
 };
 
