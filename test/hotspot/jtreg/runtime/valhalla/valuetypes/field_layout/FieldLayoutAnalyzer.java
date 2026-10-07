@@ -197,6 +197,7 @@ public class FieldLayoutAnalyzer {
     int nullableNonAtomicLayoutSize;         // -1 if no nullable non-atomic layout
     int nullableNonAtomicLayoutAlignment;    // -1 if no nullable non-atomic layout
     int nullMarkerOffset;                    // -1 if no nullable layout
+    String nullMarkerType;                   // null if no nullable layout
     String[] lines;
     ArrayList<FieldBlock> staticFields;
     ArrayList<FieldBlock> nonStaticFields;
@@ -384,6 +385,14 @@ public class FieldLayoutAnalyzer {
           lo.moveToNextLine();
         } else {
           cl.nullMarkerOffset = -1;
+        }
+        // Null marker type = *nullmarker* (optional)
+        if (lo.getCurrentLine().startsWith("Null marker type")) {
+          String[] nullMarkerLine = lo.getCurrentLine().split("\\s+");
+          cl.nullMarkerType = nullMarkerLine[4];
+          lo.moveToNextLine();
+        } else {
+          cl.nullMarkerType = null;
         }
         // Non-oop acmp map <offset,size>: <12,1> <16,4> ...
         Asserts.assertTrue(lo.getCurrentLine().startsWith("Non-oop acmp map <offset,size>"), lo.getCurrentLine());
@@ -796,8 +805,12 @@ public class FieldLayoutAnalyzer {
     if (layoutKind.hasNullMarker()) {
       Asserts.assertTrue(cl.hasNullMarker());
       int nullMarkerOffset = fieldOffset + cl.nullMarkerOffset;
-      Asserts.assertFalse(bitmap[nullMarkerOffset], "Overlap in null marker at offset " + nullMarkerOffset + " of class " + cl.name);
-      bitmap[nullMarkerOffset] = true;
+      if (cl.nullMarkerType.equals("*nullmarker*")) {
+        Asserts.assertFalse(bitmap[nullMarkerOffset], "Overlap in null marker at offset " + nullMarkerOffset + " of class " + cl.name);
+        bitmap[nullMarkerOffset] = true;
+      } else {
+        Asserts.assertTrue(bitmap[nullMarkerOffset], "Missing null marker field at offset " + nullMarkerOffset + " of class " + cl.name);
+      }
     }
   }
 
