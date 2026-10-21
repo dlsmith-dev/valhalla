@@ -64,7 +64,7 @@ public class ValueObjectPrinting {
     }
 
     static void checkNullFree(String s, String fieldName, String type) {
-        checkMatch(s, "final value flat '" + fieldName + "' .* Flat value null-free type field '" + type + "'");
+        checkMatch(s, "final value flat '" + fieldName + "' .* Flat null-checked value type field '" + type + "'");
     }
 
     static void checkNonNullFree(String s, String fieldName, String type) {

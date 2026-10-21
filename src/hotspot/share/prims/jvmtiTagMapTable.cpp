@@ -89,7 +89,7 @@ static bool equal_value_objects(oop obj1, int offset1, oop obj2, int offset2, Va
     if (fld.is_flat()) { // flat value field
       InstanceKlass* holder_klass = fld.field_descriptor().field_holder();
       ValueKlass* field_klass = holder_klass->get_value_type_field_klass(fld.index());
-      if (!fld.is_null_free_value_type()) {
+      if (!fld.is_null_checked()) {
         bool field1_is_null = is_null_flat_field(obj1, field_offset1, field_klass);
         bool field2_is_null = is_null_flat_field(obj2, field_offset2, field_klass);
         if (field1_is_null != field2_is_null) {
@@ -270,13 +270,6 @@ void JvmtiTagMapTable::add(const JvmtiHeapwalkObject& obj, jlong tag) {
     jlong* value = _table.put_if_absent(new_entry, tag, &is_added);
     *value = tag; // assign the new tag
   }
-  if (is_added) {
-    if (_table.maybe_grow(5, true /* use_large_table_sizes */)) {
-      int max_bucket_size = DEBUG_ONLY(_table.verify()) NOT_DEBUG(0);
-      log_info(jvmti, table) ("JvmtiTagMap table resized to %d for %d entries max bucket %d",
-                              _table.table_size(), _table.number_of_entries(), max_bucket_size);
-    }
-  }
 }
 
 bool JvmtiTagMapTable::update(const JvmtiHeapwalkObject& obj, jlong tag) {
@@ -393,13 +386,6 @@ void JvmtiFlatTagMapTable::add(const JvmtiHeapwalkObject& obj, jlong tag) {
   bool is_added;
   jlong* value = _table.put_if_absent(entry, tag, &is_added);
   *value = tag; // assign the new tag
-  if (is_added) {
-    if (_table.maybe_grow(5, true /* use_large_table_sizes */)) {
-      int max_bucket_size = DEBUG_ONLY(_table.verify()) NOT_DEBUG(0);
-      log_info(jvmti, table) ("JvmtiFlatTagMapTable table resized to %d for %d entries max bucket %d",
-        _table.table_size(), _table.number_of_entries(), max_bucket_size);
-    }
-  }
 }
 
 jlong JvmtiFlatTagMapTable::remove(const JvmtiHeapwalkObject& obj) {

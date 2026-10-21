@@ -60,7 +60,6 @@
 #include "oops/objArrayKlass.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
-#include "oops/oopCast.inline.hpp"
 #include "oops/symbol.hpp"
 #include "oops/typeArrayKlass.hpp"
 #include "oops/typeArrayOop.inline.hpp"
@@ -1925,8 +1924,8 @@ JNI_ENTRY_NO_PRESERVE(void, jni_SetObjectField(JNIEnv *env, jobject obj, jfieldI
       InstanceKlass *ik = InstanceKlass::cast(k);
       fieldDescriptor fd;
       ik->find_field_from_offset(offset, false, &fd);
-      if (fd.is_null_free_value_type()) {
-        THROW_MSG(vmSymbols::java_lang_NullPointerException(), "Cannot store null in a null-restricted field");
+      if (fd.is_null_checked()) {
+        THROW_MSG(vmSymbols::java_lang_NullPointerException(), "Cannot store null in a null-checked field");
       }
     }
     HeapAccess<ON_UNKNOWN_OOP_REF>::oop_store_at(o, offset, v);

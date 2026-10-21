@@ -367,9 +367,6 @@ class InstanceKlass: public Klass {
   bool has_flat_fields() const { return _misc_flags.has_flat_fields(); }
   void set_has_flat_fields()   { _misc_flags.set_has_flat_fields(true); }
 
-  bool has_null_restricted_static_fields() const { return _misc_flags.has_null_restricted_static_fields(); }
-  void set_has_null_restricted_static_fields()   { _misc_flags.set_has_null_restricted_static_fields(true); }
-
   bool is_naturally_atomic(bool null_free) const;
   void set_is_naturally_atomic()    { _misc_flags.set_is_naturally_atomic(true); }
 
@@ -454,7 +451,8 @@ class InstanceKlass: public Klass {
   inline Symbol* field_signature   (int index) const;
   bool field_is_flat(int index) const { return field_flags(index).is_flat(); }
   bool field_has_null_marker(int index) const { return field_flags(index).has_null_marker(); }
-  bool field_is_null_free_value_type(int index) const;
+  bool field_is_null_checked(int index) const;
+  bool field_is_strict(int index) const { return field(index).access_flags().is_strict(); }
   bool is_class_in_loadable_descriptors_attribute(Symbol* name) const;
 
   int field_null_marker_offset(int index) const;
@@ -599,6 +597,8 @@ public:
   ClassState  init_state() const           { return AtomicAccess::load_acquire(&_init_state); }
   const char* init_state_name() const;
   bool is_rewritten() const                { return _misc_flags.rewritten(); }
+
+  static const char* state2name(ClassState state);
 
   // is this a sealed class
   bool is_sealed() const;

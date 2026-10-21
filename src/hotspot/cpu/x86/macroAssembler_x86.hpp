@@ -103,8 +103,8 @@ class MacroAssembler: public Assembler {
   // ValueKlass queries, kills temp_reg
   void test_oop_is_not_value_type(Register object, Register tmp, Label& not_value_type, bool can_be_null = true);
 
-  void test_field_is_null_free_value_type(Register flags, Register temp_reg, Label& is_null_free);
-  void test_field_is_not_null_free_value_type(Register flags, Register temp_reg, Label& not_null_free);
+  void test_field_is_null_checked(Register flags, Register temp_reg, Label& is_null_checked);
+  void test_field_is_not_null_checked(Register flags, Register temp_reg, Label& not_null_checked);
   void test_field_is_flat(Register flags, Register temp_reg, Label& is_flat);
 
   // Check oops for special arrays, i.e. flat arrays and/or null-free arrays
@@ -392,8 +392,6 @@ class MacroAssembler: public Assembler {
   void access_store_at(BasicType type, DecoratorSet decorators, Address dst, Register val,
                        Register tmp1, Register tmp2, Register tmp3);
 
-  void flat_field_copy(DecoratorSet decorators, Register src, Register dst, Register value_field_info);
-
   // value type data payload offsets...
   void payload_offset(Register value_klass, Register offset);
   void payload_addr(Register oop, Register data, Register value_klass);
@@ -553,8 +551,6 @@ public:
     Label&   slow_case                 // continuation point if fast allocation fails
   );
   void zero_memory(Register address, Register length_in_bytes, int offset_in_bytes, Register temp);
-
-  void value_field_info(Register klass, Register index, Register vfi);
 
   void population_count(Register dst, Register src, Register scratch1, Register scratch2);
 

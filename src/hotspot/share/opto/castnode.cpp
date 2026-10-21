@@ -263,7 +263,7 @@ Node* ConstraintCastNode::ideal_cast_of_value_type_node(PhaseGVN* phase) {
 
   // Push the cast to the null-free inputs of vt
   for (uint i = 0; i < vt->field_count(); i++) {
-    if (vt->field(i)->is_null_free()) {
+    if (vt->field(i)->is_null_checked()) {
       const ConstraintCastNode::DependencyType& dep = _dependency.is_floating() ? ConstraintCastNode::DependencyType::FloatingNarrowing
                                                                                 : ConstraintCastNode::DependencyType::NonFloatingNarrowing;
       Node* new_fv = new CastPPNode(in(0), vt->field_value(i), TypePtr::NOTNULL, dep);

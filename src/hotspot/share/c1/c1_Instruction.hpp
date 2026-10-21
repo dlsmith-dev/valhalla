@@ -842,7 +842,7 @@ LEAF(LoadField, AccessField)
             ValueStack* state_before, bool needs_patching)
   : AccessField(obj, offset, field, is_static, state_before, needs_patching)
   {
-    set_null_free(field->is_null_free());
+    set_null_free(field->is_null_checked());
   }
 
   ciType* declared_type() const;

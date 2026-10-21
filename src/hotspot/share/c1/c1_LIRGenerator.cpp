@@ -36,6 +36,7 @@
 #include "ci/ciObjArrayKlass.hpp"
 #include "ci/ciUtilities.hpp"
 #include "ci/ciValueKlass.hpp"
+#include "code/aotCodeCache.hpp"
 #include "compiler/compilerDefinitions.inline.hpp"
 #include "compiler/compilerOracle.hpp"
 #include "gc/shared/barrierSet.hpp"
@@ -668,7 +669,8 @@ void LIRGenerator::new_instance(LIR_Opr dst, ciInstanceKlass* klass, bool is_unr
   if (UseFastNewInstance && klass->is_loaded() && (allow_value || !klass->is_value_klass())
       && !Klass::layout_helper_needs_slow_path(klass->layout_helper())) {
 
-    StubId stub_id = klass->is_initialized() ? StubId::c1_fast_new_instance_id : StubId::c1_fast_new_instance_init_check_id;
+    bool known_initialized = klass->is_initialized() && !compilation()->env()->is_aot_compile();
+    StubId stub_id = known_initialized ? StubId::c1_fast_new_instance_id : StubId::c1_fast_new_instance_init_check_id;
 
     CodeStub* slow_path = new NewInstanceStub(klass_reg, dst, klass, info, stub_id);
 
@@ -677,7 +679,7 @@ void LIRGenerator::new_instance(LIR_Opr dst, ciInstanceKlass* klass, bool is_unr
     assert(klass->size_helper() > 0, "illegal instance size");
     const int instance_size = align_object_size(klass->size_helper());
     __ allocate_object(dst, scratch1, scratch2, scratch3, scratch4,
-                       oopDesc::header_size(), instance_size, klass_reg, !klass->is_initialized(), slow_path);
+                       oopDesc::header_size(), instance_size, klass_reg, !known_initialized, slow_path);
   } else {
     CodeStub* slow_path = new NewInstanceStub(klass_reg, dst, klass, info, StubId::c1_new_instance_id);
     __ jump(slow_path);
@@ -1678,7 +1680,7 @@ void LIRGenerator::do_StoreField(StoreField* x) {
 #endif
 
     // Zero the payload
-    BasicType bt = vk->atomic_size_to_basic_type(field->is_null_free());
+    BasicType bt = vk->atomic_size_to_basic_type(field->is_null_checked());
     LIR_Opr payload = new_register((bt == T_LONG) ? bt : T_INT);
     LIR_Opr zero = (bt == T_LONG) ? LIR_OprFact::longConst(0) : LIR_OprFact::intConst(0);
     __ move(zero, payload);
@@ -1695,7 +1697,7 @@ void LIRGenerator::do_StoreField(StoreField* x) {
       if (!vk->is_empty()) {
         access_load_at(decorators, bt, value, LIR_OprFact::intConst(vk->payload_offset()), payload);
       }
-      if (!field->is_null_free()) {
+      if (!field->is_null_checked()) {
         __ logical_or(payload, null_marker_mask(bt, field), payload);
       }
       if (needs_null_check) {
@@ -2177,7 +2179,7 @@ void LIRGenerator::do_LoadField(LoadField* x) {
 #endif
 
     NewInstance* buffer = nullptr;
-    bool assert_null = !field->is_null_free() && !vk->is_initialized();
+    bool assert_null = !field->is_null_checked() && !vk->is_initialized();
     if (!assert_null) {
       // Allocate the buffer before loading the payload because allocation may safepoint
       // and a payload may contain oops represented as raw bits and thus invisible to the GC.
@@ -2187,7 +2189,7 @@ void LIRGenerator::do_LoadField(LoadField* x) {
       do_NewInstance(buffer);
     }
 
-    BasicType bt = vk->atomic_size_to_basic_type(field->is_null_free());
+    BasicType bt = vk->atomic_size_to_basic_type(field->is_null_checked());
     LIR_Opr payload = new_register((bt == T_LONG) ? bt : T_INT);
     access_load_at(decorators, bt, object, LIR_OprFact::intConst(field->offset_in_bytes()), payload,
                    // Make sure to emit an implicit null check
@@ -2209,7 +2211,7 @@ void LIRGenerator::do_LoadField(LoadField* x) {
     LIRItem dest(buffer, this);
     access_store_at(decorators, bt, dest, LIR_OprFact::intConst(vk->payload_offset()), payload);
 
-    if (field->is_null_free()) {
+    if (field->is_null_checked()) {
       set_result(x, buffer->operand());
     } else {
       // Check the null marker and set result to null if it's not set
@@ -2500,7 +2502,11 @@ void LIRGenerator::do_Throw(Throw* x) {
 
 #ifndef PRODUCT
   if (PrintC1Statistics) {
-    increment_counter(Runtime1::throw_count_address(), T_INT);
+    BasicTypeList signature;
+    LIR_OprList* args = new LIR_OprList();
+    call_runtime(&signature, args,
+                 CAST_FROM_FN_PTR(address, Runtime1::increment_throw_count),
+                 voidType, nullptr);
   }
 #endif
 
@@ -3849,13 +3855,18 @@ void LIRGenerator::increment_event_counter_impl(CodeEmitInfo* info,
   int offset = -1;
   LIR_Opr counter_holder;
   if (level == CompLevel_limited_profile) {
-    MethodCounters* counters_adr = method->ensure_method_counters();
+    ciMetadata* counters_adr = method->ensure_method_counters();
     if (counters_adr == nullptr) {
       bailout("method counters allocation failed");
       return;
     }
-    counter_holder = new_pointer_register();
-    __ move(LIR_OprFact::intptrConst(counters_adr), counter_holder);
+    if (AOTCodeCache::is_dumping_code()) {
+      counter_holder = new_register(T_METADATA);
+      __ metadata2reg(counters_adr->constant_encoding(), counter_holder);
+    } else {
+      counter_holder = new_pointer_register();
+      __ move(LIR_OprFact::intptrConst(counters_adr->constant_encoding()), counter_holder);
+    }
     offset = in_bytes(backedge ? MethodCounters::backedge_counter_offset() :
                                  MethodCounters::invocation_counter_offset());
   } else if (level == CompLevel_full_profile) {

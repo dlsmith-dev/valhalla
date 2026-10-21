@@ -106,7 +106,7 @@ ValueKlass* fieldDescriptor::flat_field_klass() {
 
 bool fieldDescriptor::is_flat_field_marked_as_null(address obj, const ValuePayloadContext* vpc) {
   precond(is_flat());
-  if (is_null_free_value_type()) {
+  if (is_null_checked()) {
     return false; // Cannot be marked as null.
   } else {
     return flat_field_klass()->is_payload_marked_as_null(obj + field_offset_in_obj(vpc));
@@ -239,7 +239,7 @@ void fieldDescriptor::print_on_for(outputStream* st, oop obj, int indent, const 
         ValueKlass* vk = flat_field_klass();
         bool is_null = is_flat_field_marked_as_null(obj, vpc);
 
-        if (!is_null_free_value_type()) {
+        if (!is_null_checked()) {
           assert(has_null_marker(), "should have null marker");
           st->print("Flat value type field '%s':", vk->name()->as_C_string());
           precond(is_null == vk->is_payload_marked_as_null(obj, field_offset_in_obj));
@@ -249,7 +249,7 @@ void fieldDescriptor::print_on_for(outputStream* st, oop obj, int indent, const 
           st->cr();
         } else {
           precond(!is_null);
-          st->print_cr("Flat value null-free type field '%s':", vk->name()->as_C_string());
+          st->print_cr("Flat null-checked value type field '%s':", vk->name()->as_C_string());
         }
 
         if (!is_null) {

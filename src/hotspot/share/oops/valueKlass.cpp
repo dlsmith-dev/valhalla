@@ -187,7 +187,7 @@ int ValueKlass::collect_fields(GrowableArray<SigEntry>* sig, int base_off, int n
     if (fs.is_flat()) {
       // Resolve klass of flat field and recursively collect fields
       int field_null_marker_offset = -1;
-      if (!fs.is_null_free_value_type()) {
+      if (!fs.is_null_checked()) {
         field_null_marker_offset = base_off + fs.null_marker_offset() - (base_off > 0 ? payload_offset() : 0);
       }
       Klass* vk = field_holder->get_value_type_field_klass(fs.index());

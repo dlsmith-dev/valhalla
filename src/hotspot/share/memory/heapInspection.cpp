@@ -99,24 +99,45 @@ const char* KlassInfoEntry::name() const {
   return name;
 }
 
+const char* KlassInfoEntry::layout() const {
+  if (_klass->is_flatArray_klass()) {
+    switch (FlatArrayKlass::cast(_klass)->layout_kind()) {
+    case LayoutKind::NULL_FREE_NON_ATOMIC_FLAT:
+      return " [flat, null-restricted, non-atomic]";
+    case LayoutKind::NULL_FREE_ATOMIC_FLAT:
+      return " [flat, null-restricted, atomic]";
+    case LayoutKind::NULLABLE_NON_ATOMIC_FLAT:
+      return " [flat, nullable, non-atomic]";
+    case LayoutKind::NULLABLE_ATOMIC_FLAT:
+      return " [flat, nullable, atomic]";
+    default:
+      return " [unknown layout]";
+    }
+  }
+  return "";
+}
+
+
 void KlassInfoEntry::print_on(outputStream* st) const {
   ResourceMark rm;
 
   // simplify the formatting (ILP32 vs LP64) - always cast the numbers to 64-bit
   ModuleEntry* module = _klass->module();
   if (module->is_named()) {
-    st->print_cr(INT64_FORMAT_W(13) "  " UINT64_FORMAT_W(13) "  %s (%s%s%s)",
+    st->print_cr(INT64_FORMAT_W(13) "  " UINT64_FORMAT_W(13) "  %s%s (%s%s%s)",
                  (int64_t)_instance_count,
                  (uint64_t)_instance_words * HeapWordSize,
                  name(),
+                 layout(),
                  module->name()->as_C_string(),
                  module->version() != nullptr ? "@" : "",
                  module->version() != nullptr ? module->version()->as_C_string() : "");
   } else {
-    st->print_cr(INT64_FORMAT_W(13) "  " UINT64_FORMAT_W(13) "  %s",
+    st->print_cr(INT64_FORMAT_W(13) "  " UINT64_FORMAT_W(13) "  %s%s",
                  (int64_t)_instance_count,
                  (uint64_t)_instance_words * HeapWordSize,
-                 name());
+                 name(),
+                 layout());
   }
 }
 
@@ -551,7 +572,7 @@ private:
   int index() const { return _index; }
   const InstanceKlass* holder() { return _holder; }
   const AccessFlags& access_flags() { return _access_flags; }
-  bool is_null_free_value_type() const { return _field_flags.is_null_free_value_type(); }
+  bool is_null_checked() const { return _field_flags.is_null_checked(); }
 };
 
 static int compare_offset(FieldDesc* f1, FieldDesc* f2) {
@@ -582,7 +603,7 @@ static void print_flat_field(outputStream* st, int level, int offset, InstanceKl
     FieldDesc fd = fields->at(i);
     int offset2 = offset + fd.offset() - vklass->payload_offset();
     print_field(st, level, offset2, fd,
-        fd.is_null_free_value_type(), fd.holder()->field_is_flat(fd.index()));
+        fd.is_null_checked(), fd.holder()->field_is_flat(fd.index()));
     if (fd.holder()->field_is_flat(fd.index())) {
       print_flat_field(st, level + 1, offset2 ,
           InstanceKlass::cast(fd.holder()->get_value_type_field_klass(fd.index())));
@@ -628,7 +649,7 @@ void ClassPrintLayout::class_print_layout(outputStream* st, char* class_name) {
     fields->sort(compare_offset);
     for(int i = 0; i < fields->length(); i++) {
       FieldDesc fd = fields->at(i);
-      print_field(st, 0, fd.offset(), fd, fd.is_null_free_value_type(), fd.holder()->field_is_flat(fd.index()));
+      print_field(st, 0, fd.offset(), fd, fd.is_null_checked(), fd.holder()->field_is_flat(fd.index()));
       if (fd.holder()->field_is_flat(fd.index())) {
         print_flat_field(st, 1, fd.offset(),
             InstanceKlass::cast(fd.holder()->get_value_type_field_klass(fd.index())));
